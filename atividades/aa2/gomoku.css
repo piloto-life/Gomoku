@@ -516,7 +516,6 @@ strong {
 
 .board-coordinates {
   display: grid;
-  gap: 2px;
   font-size: var(--font-size-xs);
   font-weight: 500;
   color: var(--text-muted);
@@ -524,14 +523,16 @@ strong {
 
 .board-coordinates.top,
 .board-coordinates.bottom {
-  grid-template-columns: 2rem repeat(19, 1fr);
+  grid-template-columns: 0rem repeat(19, 1fr);
   margin: 0 2rem;
+  gap: 20px;
 }
 
 .board-coordinates.left,
 .board-coordinates.right {
   grid-template-rows: repeat(19, 1fr);
   writing-mode: horizontal-tb;
+  gap: 11px;
 }
 
 .board-with-coords {
