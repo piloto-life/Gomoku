@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Gomoku - Jogo de estratégia Five in a Row online">
+    <meta name="keywords" content="gomoku, five in a row, jogo, estratégia, tabuleiro">
+    <meta name="author" content="Projeto Web UFSC">
+    <title>Gomoku - Five in a Row | UFSC</title>
+    <link rel="stylesheet" href="gomoku.css">
+</head>
+<body>
+    <!-- Header semântico -->
+    <header class="main-header">
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h1>🎮 Gomoku</h1>
+                <span class="subtitle">Five in a Row</span>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="#home">Início</a></li>
+                <li><a href="#game">Jogar</a></li>
+                <li><a href="#rules">Regras</a></li>
+                <li><a href="#about">Sobre</a></li>
+                <li><button id="theme-toggle" class="theme-btn">🌓</button></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Conteúdo principal -->
+    <main class="main-content">
+        <!-- Seção Hero -->
+        <section id="home" class="hero-section">
+            <div class="hero-content">
+                <h2>Bem-vindo ao Gomoku Online</h2>
+                <p>Jogue o clássico jogo de estratégia Five in a Row. Seja o primeiro a formar uma linha de 5 peças consecutivas!</p>
+                <div class="hero-buttons">
+                    <button class="btn btn-primary" onclick="startGame()">Jogar Agora</button>
+                    <button class="btn btn-secondary" onclick="showRules()">Ver Regras</button>
+                </div>
+            </div>
+            <div class="hero-stats">
+                <div class="stat-card">
+                    <h3>19x19</h3>
+                    <p>Tabuleiro</p>
+                </div>
+                <div class="stat-card">
+                    <h3>5</h3>
+                    <p>Em Linha</p>
+                </div>
+                <div class="stat-card">
+                    <h3>2</h3>
+                    <p>Jogadores</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Seção do Jogo -->
+        <section id="game" class="game-section">
+            <header class="section-header">
+                <h2>Área de Jogo</h2>
+                <div class="game-controls">
+                    <button class="btn btn-small" onclick="resetGame()">Novo Jogo</button>
+                    <button class="btn btn-small" onclick="undoMove()">Desfazer</button>
+                    <span class="current-player">Jogador: <span id="player-turn">Preto</span></span>
+                </div>
+            </header>
+            
+            <div class="game-container">
+                <aside class="game-sidebar">
+                    <div class="player-info">
+                        <div class="player player-black">
+                            <div class="player-piece">⚫</div>
+                            <div class="player-details">
+                                <h4>Jogador 1</h4>
+                                <p>Peças Pretas</p>
+                                <span class="player-status active" id="player1-status">Sua vez</span>
+                            </div>
+                        </div>
+                        <div class="player player-white">
+                            <div class="player-piece">⚪</div>
+                            <div class="player-details">
+                                <h4>Jogador 2</h4>
+                                <p>Peças Brancas</p>
+                                <span class="player-status" id="player2-status">Aguardando</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="game-info">
+                        <h4>Informações da Partida</h4>
+                        <div class="info-item">
+                            <span>Movimentos:</span>
+                            <span id="move-count">0</span>
+                        </div>
+                        <div class="info-item">
+                            <span>Tempo:</span>
+                            <span id="game-time">00:00</span>
+                        </div>
+                    </div>
+
+                    <div class="move-history">
+                        <h4>Últimos Movimentos</h4>
+                        <ul id="moves-list" class="moves-list">
+                            <li>Jogo iniciado</li>
+                        </ul>
+                    </div>
+                </aside>
+
+                <div class="board-container">
+                    <div class="board-coordinates top">
+                        <span></span>
+                        <span>A</span><span>B</span><span>C</span><span>D</span><span>E</span>
+                        <span>F</span><span>G</span><span>H</span><span>I</span><span>J</span>
+                        <span>K</span><span>L</span><span>M</span><span>N</span><span>O</span>
+                        <span>P</span><span>Q</span><span>R</span><span>S</span>
+                    </div>
+                    
+                    <div class="board-with-coords">
+                        <div class="board-coordinates left">
+                            <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+                            <span>6</span><span>7</span><span>8</span><span>9</span><span>10</span>
+                            <span>11</span><span>12</span><span>13</span><span>14</span><span>15</span>
+                            <span>16</span><span>17</span><span>18</span><span>19</span>
+                        </div>
+                        
+                        <div id="game-board" class="game-board">
+                            <!-- O tabuleiro será gerado dinamicamente pelo JavaScript -->
+                        </div>
+                        
+                        <div class="board-coordinates right">
+                            <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+                            <span>6</span><span>7</span><span>8</span><span>9</span><span>10</span>
+                            <span>11</span><span>12</span><span>13</span><span>14</span><span>15</span>
+                            <span>16</span><span>17</span><span>18</span><span>19</span>
+                        </div>
+                    </div>
+                    
+                    <div class="board-coordinates bottom">
+                        <span></span>
+                        <span>A</span><span>B</span><span>C</span><span>D</span><span>E</span>
+                        <span>F</span><span>G</span><span>H</span><span>I</span><span>J</span>
+                        <span>K</span><span>L</span><span>M</span><span>N</span><span>O</span>
+                        <span>P</span><span>Q</span><span>R</span><span>S</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal de resultado -->
+            <div id="game-result-modal" class="modal hidden">
+                <div class="modal-content">
+                    <h3 id="result-title">Fim de Jogo</h3>
+                    <p id="result-message">Resultado da partida</p>
+                    <div class="modal-actions">
+                        <button class="btn btn-primary" onclick="resetGame()">Novo Jogo</button>
+                        <button class="btn btn-secondary" onclick="closeModal()">Fechar</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Seção de Regras -->
+        <section id="rules" class="rules-section">
+            <header class="section-header">
+                <h2>Como Jogar Gomoku</h2>
+                <p>Aprenda as regras básicas do jogo Five in a Row</p>
+            </header>
+            
+            <div class="rules-grid">
+                <article class="rule-card">
+                    <h3>🎯 Objetivo</h3>
+                    <p>Seja o primeiro jogador a formar uma linha ininterrupta de <strong>5 peças</strong> da sua cor no tabuleiro.</p>
+                </article>
+                
+                <article class="rule-card">
+                    <h3>🎲 Como Jogar</h3>
+                    <ul>
+                        <li>O jogo é jogado em um tabuleiro de 19x19</li>
+                        <li>Jogadores alternam turnos</li>
+                        <li>Peças pretas sempre começam</li>
+                        <li>Clique em uma intersecção para colocar sua peça</li>
+                    </ul>
+                </article>
+                
+                <article class="rule-card">
+                    <h3>🏆 Condições de Vitória</h3>
+                    <p>Forme 5 peças consecutivas em qualquer direção:</p>
+                    <ul>
+                        <li>Horizontal (→)</li>
+                        <li>Vertical (↓)</li>
+                        <li>Diagonal (↘)</li>
+                        <li>Diagonal inversa (↙)</li>
+                    </ul>
+                </article>
+                
+                <article class="rule-card">
+                    <h3>⚡ Estratégias</h3>
+                    <ul>
+                        <li>Crie múltiplas ameaças simultâneas</li>
+                        <li>Bloqueie as formações do oponente</li>
+                        <li>Controle o centro do tabuleiro</li>
+                        <li>Pense várias jogadas à frente</li>
+                    </ul>
+                </article>
+            </div>
+        </section>
+
+        <!-- Seção Sobre -->
+        <section id="about" class="about-section">
+            <header class="section-header">
+                <h2>Sobre o Projeto</h2>
+                <p>Desenvolvido como parte da disciplina de Programação para Web da UFSC</p>
+            </header>
+            
+            <div class="about-content">
+                <article class="about-card">
+                    <h3>🎓 Projeto Acadêmico</h3>
+                    <p>Este jogo foi desenvolvido como parte do Projeto Web da disciplina INE5646 - Programação para Web da Universidade Federal de Santa Catarina (UFSC).</p>
+                </article>
+                
+                <article class="about-card">
+                    <h3>🛠️ Tecnologias</h3>
+                    <ul>
+                        <li><strong>HTML5:</strong> Estrutura semântica</li>
+                        <li><strong>CSS3:</strong> Estilização e responsividade</li>
+                        <li><strong>JavaScript:</strong> Lógica do jogo</li>
+                        <li><strong>UTF-8:</strong> Codificação de caracteres</li>
+                    </ul>
+                </article>
+                
+                <article class="about-card">
+                    <h3>🎮 Sobre o Gomoku</h3>
+                    <p>Gomoku, também conhecido como "Five in a Row", é um jogo de estratégia milenar originário do Japão. É uma variação simplificada do Go, focando na formação de linhas consecutivas.</p>
+                </article>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer semântico -->
+    <footer class="main-footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h4>Gomoku UFSC</h4>
+                <p>Projeto Web - INE5646</p>
+                <p>Programação para Web</p>
+            </div>
+            <div class="footer-section">
+                <h4>Links Úteis</h4>
+                <ul>
+                    <li><a href="#rules">Regras do Jogo</a></li>
+                    <li><a href="#about">Sobre o Projeto</a></li>
+                    <li><a href="https://github.com/Coelho50/Gomoku" target="_blank">GitHub</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h4>Tecnologias</h4>
+                <ul>
+                    <li>HTML5 Semântico</li>
+                    <li>CSS3 Responsivo</li>
+                    <li>JavaScript Vanilla</li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 UFSC - Universidade Federal de Santa Catarina</p>
+            <p>Desenvolvido para fins acadêmicos</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="gomoku.js"></script>
+</body>
+</html>
