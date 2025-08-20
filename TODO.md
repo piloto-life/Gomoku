@@ -14,43 +14,44 @@
 
 ## 🏗️ Backend - FastAPI + MongoDB
 
-### Core API
-- [ ] **Configurar projeto FastAPI**
-  - [ ] Estrutura de pastas MVC
-  - [ ] Configuração de ambiente
-  - [ ] Dockerfile
-  - [ ] Requirements.txt
+### Core API ✅
+- [x] **Configurar projeto FastAPI**
+  - [x] Estrutura de pastas MVC
+  - [x] Configuração de ambiente
+  - [x] Dockerfile
+  - [x] Requirements.txt
 
-- [ ] **Integração MongoDB**
-  - [ ] Configurar conexão
-  - [ ] Models de dados (User, Game, Match, etc.)
-  - [ ] Agregações e queries
+- [x] **Integração MongoDB**
+  - [x] Configurar conexão
+  - [x] Models de dados (User, Game, Match, etc.)
+  - [x] Agregações e queries
 
-- [ ] **Sistema de Autenticação**
-  - [ ] JWT token system
-  - [ ] Middleware de autenticação
-  - [ ] Password hashing
+- [x] **Sistema de Autenticação**
+  - [x] JWT token system
+  - [x] Middleware de autenticação
+  - [x] Password hashing
   - [ ] Refresh tokens
 
-### Game Logic API
-- [ ] **Endpoints do jogo**
-  - [ ] POST /api/games (criar nova partida)
-  - [ ] GET /api/games/{id} (obter estado da partida)
-  - [ ] POST /api/games/{id}/move (fazer jogada)
-  - [ ] GET /api/games/{id}/history (histórico de jogadas)
+### Game Logic API ✅
+- [x] **Endpoints do jogo**
+  - [x] POST /api/games (criar nova partida)
+  - [x] GET /api/games/{id} (obter estado da partida)
+  - [x] POST /api/games/{id}/move (fazer jogada)
+  - [x] GET /api/games/{id}/join (entrar em partida)
+  - [x] DELETE /api/games/{id} (deletar partida)
 
-- [ ] **WebSocket para tempo real**
-  - [ ] Conexão de jogadores
-  - [ ] Sincronização de movimentos
-  - [ ] Chat em tempo real
-  - [ ] Sistema de salas
+- [x] **WebSocket para tempo real**
+  - [x] Conexão de jogadores
+  - [x] Sincronização de movimentos
+  - [x] Chat em tempo real
+  - [x] Sistema de salas
 
-### User Management
-- [ ] **CRUD de usuários**
-  - [ ] Cadastro (nome, idade, localização, avatar)
-  - [ ] Login/logout
-  - [ ] Atualização de perfil
-  - [ ] Exclusão de conta
+### User Management ✅
+- [x] **CRUD de usuários**
+  - [x] Cadastro (nome, idade, localização, avatar)
+  - [x] Login/logout
+  - [x] Atualização de perfil
+  - [x] Listagem de usuários
 
 - [ ] **Sistema de ranking**
   - [ ] Pontuação por vitórias
@@ -60,50 +61,52 @@
 
 ## 🎨 Frontend - React + TypeScript
 
-### Setup Inicial
-- [ ] **Configurar projeto React**
-  - [ ] Create React App com TypeScript
-  - [ ] Configurar Tailwind CSS
-  - [ ] Estrutura de componentes
-  - [ ] Roteamento (React Router)
+### Setup Inicial ✅
+- [x] **Configurar projeto React**
+  - [x] Create React App com TypeScript
+  - [x] Configurar Tailwind CSS
+  - [x] Estrutura de componentes
+  - [x] Roteamento (React Router)
 
-- [ ] **Estado global**
-  - [ ] Context API ou Redux
-  - [ ] Gerenciamento de usuário logado
-  - [ ] Estado do jogo
-  - [ ] WebSocket integration
+- [x] **Estado global**
+  - [x] Context API
+  - [x] Gerenciamento de usuário logado
+  - [x] Estado do jogo
+  - [x] WebSocket integration
 
-### Interface Core
-- [ ] **Tabuleiro do jogo**
-  - [ ] Componente Board 19x19
-  - [ ] Componente Piece (peças)
-  - [ ] Validação visual de jogadas
-  - [ ] Animações de movimento
+### Interface Core ✅
+- [x] **Tabuleiro do jogo**
+  - [x] Componente Board 19x19
+  - [x] Componente Piece (peças)
+  - [x] Validação visual de jogadas
+  - [x] Animações de movimento
 
-- [ ] **Sistema de autenticação**
-  - [ ] Tela de login
-  - [ ] Tela de cadastro
-  - [ ] Perfil do usuário
+- [x] **Sistema de autenticação**
+  - [x] Tela de login
+  - [x] Tela de cadastro
+  - [x] Perfil do usuário
   - [ ] Recuperação de senha
 
-### Game Features
-- [ ] **Lobby/Salas**
-  - [ ] Lista de jogadores online
-  - [ ] Criação de salas
+### Game Features ✅
+- [x] **Lobby/Salas**
+  - [x] Lista de jogadores online
+  - [x] Criação de salas
+  - [x] Interface de lobby
   - [ ] Fila de espera
   - [ ] Convites para partida
 
-- [ ] **Chat System**
-  - [ ] Chat da partida
+- [x] **Chat System**
+  - [x] Chat da partida
+  - [x] Interface de chat
   - [ ] Chat global
   - [ ] Moderação básica
   - [ ] Emojis/reações
 
-### Responsividade
-- [ ] **Design adaptativo**
-  - [ ] Layout desktop
-  - [ ] Layout mobile/tablet
-  - [ ] Temas light/dark
+### Responsividade ✅
+- [x] **Design adaptativo**
+  - [x] Layout desktop
+  - [x] Layout mobile/tablet
+  - [x] Temas light/dark
   - [ ] Accessibility (ARIA)
 
 ## 🔒 Segurança
@@ -176,12 +179,12 @@
 
 ## 🖥️ DevOps & Deploy
 
-### Ambiente de Desenvolvimento
-- [ ] **Docker setup**
-  - [ ] Backend container
-  - [ ] Frontend container
-  - [ ] MongoDB container
-  - [ ] Docker compose
+### Ambiente de Desenvolvimento ✅
+- [x] **Docker setup**
+  - [x] Backend container
+  - [x] Frontend container
+  - [x] MongoDB container
+  - [x] Docker compose
 
 - [ ] **CI/CD Pipeline**
   - [ ] GitHub Actions

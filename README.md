@@ -36,18 +36,18 @@ backend/
 
 ## 🚀 Roadmap de Desenvolvimento
 
-### Fase 1: Modernização do Backend
-- [ ] Migração para FastAPI
-- [ ] Implementação de API RESTful
-- [ ] Integração com MongoDB
-- [ ] Sistema de autenticação JWT
-- [ ] WebSocket para comunicação em tempo real
+### Fase 1: Modernização do Backend ✅
+- [x] Migração para FastAPI
+- [x] Implementação de API RESTful
+- [x] Integração com MongoDB
+- [x] Sistema de autenticação JWT
+- [x] WebSocket para comunicação em tempo real
 
-### Fase 2: Frontend Moderno
-- [ ] Aplicação React + TypeScript
-- [ ] Interface responsiva (desktop/mobile)
-- [ ] Temas light/dark
-- [ ] Sistema de salas/lobby
+### Fase 2: Frontend Moderno ✅
+- [x] Aplicação React + TypeScript
+- [x] Interface responsiva (desktop/mobile)
+- [x] Temas light/dark
+- [x] Sistema de salas/lobby
 
 ### Fase 3: Recursos Avançados
 - [ ] Chat em tempo real
@@ -92,17 +92,27 @@ cd backend
 python main.py
 ```
 
-### Versão Web (Em Desenvolvimento)
+### Versão Web (Atual)
 ```bash
+# Usando Docker (Recomendado)
+docker-compose up -d
+
+# Ou manualmente:
 # Backend
 cd backend
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
-uvicorn main:app --reload
+cp .env.example .env
+uvicorn app:app --host 0.0.0.0 --port 8000 --reload
 
 # Frontend
 cd frontend
 npm install
 npm start
+
+# MongoDB
+docker-compose up -d mongodb
 ```
 
 ## 📋 Requisitos do Projeto UFSC
@@ -114,13 +124,16 @@ npm start
 - [x] Validação de movimentos
 - [x] Verificação de condições de vitória
 
+### ✅ Implementado
+- [x] **Aplicação Web** (Backend + Frontend)
+- [x] **Padrão MVC** (FastAPI + React)
+- [x] **MongoDB** (obrigatório)
+- [x] **Interface Responsiva**
+- [x] **Sistema de Autenticação** (JWT)
+- [x] **Chat em tempo real** (WebSocket)
+
 ### 🔄 Em Desenvolvimento
-- [ ] **Aplicação Web HTTPS**
-- [ ] **Padrão MVC**
-- [ ] **MongoDB** (obrigatório)
-- [ ] **Interface Responsiva**
-- [ ] **Sistema de Autenticação**
-- [ ] **Chat em tempo real**
+- [ ] **HTTPS** (Deploy VPS-UFSC)
 - [ ] **Videochat com WebRTC**
 - [ ] **Sistema de Ranking**
 - [ ] **Gravação de Partidas**
@@ -139,11 +152,14 @@ npm start
 - [x] Tabuleiro 19x19 interativo
 - [x] Validação de movimentos
 - [x] Detecção de vitória (5 em linha)
-- [ ] Sistema de turnos em tempo real
+- [x] Sistema de turnos em tempo real
+- [x] WebSocket para sincronização
 - [ ] Reconexão automática
 
 ### Multiplayer
-- [ ] Sistema de salas/lobby
+- [x] Sistema de salas/lobby
+- [x] Criação e entrada em jogos
+- [x] API RESTful para gerenciamento
 - [ ] Fila de jogadores
 - [ ] Matchmaking automático
 - [ ] Espectadores
