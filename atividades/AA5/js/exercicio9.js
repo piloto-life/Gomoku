@@ -1,26 +1,60 @@
 function haOnzeDigitos(cpf) {
-    //---- edite aqui para a validação do exercício 9a
-    return false
+    // Verifica se o CPF tem exatamente 11 caracteres
+    return cpf && cpf.length === 11;
 }
 
 function todosOsOnzeDigitosSaoNumeros(cpf) {
-    //---- edite aqui para a validação do exercício 9b
-    return false
+    // Verifica se todos os 11 caracteres são dígitos numéricos
+    return /^\d{11}$/.test(cpf);
 }
 
 function osOnzeNumerosSaoDiferentes(cpf) {
-    //---- edite aqui para a validação do exercício 9c
-    return false
+    // Verifica se nem todos os dígitos são iguais
+    // CPFs como 11111111111, 22222222222, etc. são inválidos
+    const primeiroDigito = cpf[0];
+    return !cpf.split('').every(digito => digito === primeiroDigito);
 }
 
 function oPrimeiroDigitoVerificadorEhValido(cpf) {
-    //---- edite aqui para a validação do exercício 9d
-    return false
+    // Calcula o primeiro dígito verificador (10º dígito)
+    let soma = 0;
+    
+    // Multiplica cada um dos 9 primeiros dígitos por números decrescentes de 10 a 2
+    for (let i = 0; i < 9; i++) {
+        soma += parseInt(cpf[i]) * (10 - i);
+    }
+    
+    // Calcula o resto: (soma * 10) % 11
+    let resto = (soma * 10) % 11;
+    
+    // Se o resto for 10, usa 0 no lugar
+    if (resto === 10) {
+        resto = 0;
+    }
+    
+    // Compara com o 10º dígito do CPF
+    return resto === parseInt(cpf[9]);
 }
 
 function oSegundoDigitoVerificadorEhValido(cpf) {
-    //---- edite aqui para a validação do exercício 9e
-    return false
+    // Calcula o segundo dígito verificador (11º dígito)
+    let soma = 0;
+    
+    // Multiplica cada um dos 10 primeiros dígitos por números decrescentes de 11 a 2
+    for (let i = 0; i < 10; i++) {
+        soma += parseInt(cpf[i]) * (11 - i);
+    }
+    
+    // Calcula o resto: (soma * 10) % 11
+    let resto = (soma * 10) % 11;
+    
+    // Se o resto for 10, usa 0 no lugar
+    if (resto === 10) {
+        resto = 0;
+    }
+    
+    // Compara com o 11º dígito do CPF
+    return resto === parseInt(cpf[10]);
 }
 
 

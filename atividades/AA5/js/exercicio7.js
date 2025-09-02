@@ -1,10 +1,29 @@
 function listarCasos() {
     let todosOsCasos = []
-    //--- inclua seu algoritmo aqui ---
-
     
+    // Verifica todos os números de dois algarismos (10 a 99)
+    for (let numero = 10; numero <= 99; numero++) {
+        // Calcula o quadrado do número
+        let quadrado = numero * numero;
+        
+        // Verifica se o quadrado tem exatamente 4 dígitos (1000 a 9999)
+        if (quadrado >= 1000 && quadrado <= 9999) {
+            // Converte o quadrado para string para facilitar a manipulação
+            let quadradoStr = quadrado.toString();
+            
+            // Pega os dois primeiros dígitos
+            let primeiros = parseInt(quadradoStr.substring(0, 2));
+            
+            // Pega os dois últimos dígitos
+            let ultimos = parseInt(quadradoStr.substring(2, 4));
+            
+            // Verifica se a soma dos pares é igual ao número original
+            if (primeiros + ultimos === numero) {
+                todosOsCasos.push(numero);
+            }
+        }
+    }
 
-    //--- ---
     return todosOsCasos
 }
 
