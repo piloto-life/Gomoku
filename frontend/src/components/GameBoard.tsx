@@ -12,6 +12,25 @@ const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
   const handleCellClick = (row: number, col: number) => {
     if (gameState.status !== 'active') return;
     
+    // Para modo local (2 jogadores), permitir qualquer jogada
+    if (gameState.gameMode === 'pvp-local') {
+      const position: Position = { row, col };
+      makeMove(position);
+      return;
+    }
+    
+    // Para modo PvE, não permitir jogadas quando é a vez da IA
+    if (gameState.gameMode === 'pve' && 
+        gameState.currentPlayer === 'white' && 
+        gameState.players.white.id === 'ai') {
+      return;
+    }
+    
+    // Para modo online, verificar se é a vez do jogador atual
+    if (gameState.gameMode === 'pvp-online') {
+      // TODO: Adicionar verificação de turno para jogador online
+    }
+    
     const position: Position = { row, col };
     makeMove(position);
   };

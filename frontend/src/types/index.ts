@@ -32,6 +32,7 @@ export interface GameState {
   id: string;
   board: (string | null)[][];
   currentPlayer: 'black' | 'white';
+  gameMode?: 'pvp-local' | 'pvp-online' | 'pve';
   players: {
     black: Player;
     white: Player;
@@ -107,7 +108,7 @@ export interface Room {
   players: Player[];
   maxPlayers: number;
   status: 'waiting' | 'full' | 'playing';
-  gameMode: 'pvp' | 'pve';
+  gameMode: 'pvp-local' | 'pvp-online' | 'pve';
   createdAt: Date;
 }
 

@@ -37,6 +37,7 @@ class GameBase(BaseModel):
     current_player: PieceColor = PieceColor.BLACK
     status: GameStatus = GameStatus.WAITING
     game_mode: str = "pvp"  # "pvp" or "pve"
+    ai_difficulty: str = "medium"  # "easy", "medium", "hard"
 
 class GameCreate(GameBase):
     pass
@@ -55,6 +56,7 @@ class GameInDB(GameBase):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     room_id: Optional[str] = None
+    ai_difficulty: str = "medium"
 
     class Config:
         allow_population_by_field_name = True
@@ -69,9 +71,27 @@ class Game(GameBase):
     created_at: datetime
     updated_at: datetime
     room_id: Optional[str] = None
+    ai_difficulty: str = "medium"
 
     class Config:
         allow_population_by_field_name = True
 
 class MoveRequest(BaseModel):
     position: Position
+
+class CreateGameRequest(BaseModel):
+    game_mode: str = Field(..., pattern=r"^(pvp-local|pvp-online|pve)$")
+    ai_difficulty: str = Field(default="medium", pattern=r"^(easy|medium|hard)$")
+
+class GameResponse(BaseModel):
+    id: str
+    board: List[List[Optional[str]]]
+    currentPlayer: PieceColor
+    players: Dict[str, Any]
+    status: GameStatus
+    gameMode: str
+    aiDifficulty: Optional[str] = None
+    moves: List[Dict[str, Any]]
+    createdAt: datetime
+    updatedAt: datetime
+    winner: Optional[str] = None

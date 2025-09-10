@@ -12,9 +12,9 @@ interface OnlinePlayer {
 
 const Lobby: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
-  const { createGame } = useGame();
+  const { createGame, aiDifficulty, setAiDifficulty } = useGame();
   const navigate = useNavigate();
-  const [selectedGameMode, setSelectedGameMode] = useState<'pvp' | 'pve'>('pvp');
+  const [selectedGameMode, setSelectedGameMode] = useState<'pvp-local' | 'pvp-online' | 'pve'>('pvp-local');
 
   // Mock data for development
   const [onlinePlayers] = useState<OnlinePlayer[]>([
@@ -31,7 +31,7 @@ const Lobby: React.FC = () => {
   ]);
 
   const handleCreateGame = () => {
-    createGame(selectedGameMode);
+    createGame(selectedGameMode, aiDifficulty);
     navigate('/game');
   };
 
@@ -72,28 +72,78 @@ const Lobby: React.FC = () => {
                 <label>
                   <input
                     type="radio"
-                    value="pvp"
-                    checked={selectedGameMode === 'pvp'}
-                    onChange={(e) => setSelectedGameMode(e.target.value as 'pvp' | 'pve')}
+                    value="pvp-local"
+                    checked={selectedGameMode === 'pvp-local'}
+                    onChange={(e) => setSelectedGameMode(e.target.value as 'pvp-local' | 'pvp-online' | 'pve')}
                   />
-                  Jogador vs Jogador
+                  2 Jogadores (Local)
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    value="pvp-online"
+                    checked={selectedGameMode === 'pvp-online'}
+                    onChange={(e) => setSelectedGameMode(e.target.value as 'pvp-local' | 'pvp-online' | 'pve')}
+                  />
+                  Jogador vs Jogador (Online)
                 </label>
                 <label>
                   <input
                     type="radio"
                     value="pve"
                     checked={selectedGameMode === 'pve'}
-                    onChange={(e) => setSelectedGameMode(e.target.value as 'pvp' | 'pve')}
+                    onChange={(e) => setSelectedGameMode(e.target.value as 'pvp-local' | 'pvp-online' | 'pve')}
                   />
                   Jogador vs IA
                 </label>
               </div>
               
+              {/* AI Difficulty Selector - only show for PvE */}
+              {selectedGameMode === 'pve' && (
+                <div className="ai-difficulty-selector">
+                  <h4>Dificuldade da IA:</h4>
+                  <div className="difficulty-options">
+                    <label>
+                      <input
+                        type="radio"
+                        value="easy"
+                        checked={aiDifficulty === 'easy'}
+                        onChange={(e) => setAiDifficulty(e.target.value as 'easy' | 'medium' | 'hard')}
+                      />
+                      Fácil
+                    </label>
+                    <label>
+                      <input
+                        type="radio"
+                        value="medium"
+                        checked={aiDifficulty === 'medium'}
+                        onChange={(e) => setAiDifficulty(e.target.value as 'easy' | 'medium' | 'hard')}
+                      />
+                      Médio
+                    </label>
+                    <label>
+                      <input
+                        type="radio"
+                        value="hard"
+                        checked={aiDifficulty === 'hard'}
+                        onChange={(e) => setAiDifficulty(e.target.value as 'easy' | 'medium' | 'hard')}
+                      />
+                      Difícil
+                    </label>
+                  </div>
+                </div>
+              )}
+              
               <button onClick={handleCreateGame} className="btn btn-primary">
-                {selectedGameMode === 'pve' ? 'Jogar contra IA' : 'Criar Sala'}
+                {selectedGameMode === 'pve' 
+                  ? `Jogar contra IA (${aiDifficulty})` 
+                  : selectedGameMode === 'pvp-local' 
+                    ? 'Jogar Local (2 Jogadores)' 
+                    : 'Criar Sala Online'
+                }
               </button>
               
-              {selectedGameMode === 'pvp' && (
+              {selectedGameMode === 'pvp-online' && (
                 <button onClick={handleJoinQueue} className="btn btn-secondary">
                   Entrar na Fila
                 </button>

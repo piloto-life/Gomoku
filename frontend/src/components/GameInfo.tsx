@@ -1,11 +1,14 @@
 import React from 'react';
 import { GameState } from '../types';
+import { useGame } from '../contexts/GameContext';
 
 interface GameInfoProps {
   gameState: GameState;
 }
 
 const GameInfo: React.FC<GameInfoProps> = ({ gameState }) => {
+  const { aiDifficulty, setAiDifficulty } = useGame();
+
   const getCurrentPlayerName = () => {
     return gameState.currentPlayer === 'black' 
       ? gameState.players.black.name 
@@ -17,7 +20,16 @@ const GameInfo: React.FC<GameInfoProps> = ({ gameState }) => {
       case 'waiting':
         return 'Aguardando jogadores...';
       case 'active':
-        return `Turno de ${getCurrentPlayerName()}`;
+        const currentPlayerName = getCurrentPlayerName();
+        const isAI = gameState.gameMode === 'pve' && 
+                     gameState.currentPlayer === 'white' && 
+                     gameState.players.white.id === 'ai';
+        
+        if (gameState.gameMode === 'pvp-local') {
+          return `Turno do Jogador ${gameState.currentPlayer === 'black' ? '1 (⚫)' : '2 (⚪)'}`;
+        }
+        
+        return isAI ? `IA está pensando...` : `Turno de ${currentPlayerName}`;
       case 'finished':
         if (gameState.winner === 'draw') {
           return 'Empate!';
@@ -32,6 +44,8 @@ const GameInfo: React.FC<GameInfoProps> = ({ gameState }) => {
         return 'Status desconhecido';
     }
   };
+
+  const isAIGame = gameState.gameMode === 'pve';
 
   return (
     <div className="game-info">
@@ -68,6 +82,33 @@ const GameInfo: React.FC<GameInfoProps> = ({ gameState }) => {
           </div>
         </div>
       </div>
+
+      {/* AI Control Section - only show for PvE games */}
+      {isAIGame && gameState.status !== 'finished' && (
+        <div className="ai-control-section">
+          <h4>Configurações da IA</h4>
+          <div className="ai-difficulty-controls">
+            <label>Dificuldade:</label>
+            <select 
+              value={aiDifficulty} 
+              onChange={(e) => setAiDifficulty(e.target.value as 'easy' | 'medium' | 'hard')}
+              className="difficulty-select"
+            >
+              <option value="easy">Fácil</option>
+              <option value="medium">Médio</option>
+              <option value="hard">Difícil</option>
+            </select>
+          </div>
+          <div className="ai-info">
+            <div className="ai-status">
+              {gameState.currentPlayer === 'white' && gameState.players.white.id === 'ai' 
+                ? '🤖 IA está pensando...' 
+                : '⏳ Aguardando seu movimento'
+              }
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="game-stats">
         <h4>Estatísticas</h4>

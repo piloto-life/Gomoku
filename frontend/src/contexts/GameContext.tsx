@@ -3,20 +3,26 @@ import { GameState, Move, Position, Player, GameSettings } from '../types';
 
 interface GameContextType {
   gameState: GameState | null;
+  gameMode: 'pvp-local' | 'pvp-online' | 'pve' | null;
   settings: GameSettings;
   isConnected: boolean;
+  aiDifficulty: 'easy' | 'medium' | 'hard';
   makeMove: (position: Position) => void;
   joinGame: (gameId: string) => void;
-  createGame: (gameMode: 'pvp' | 'pve') => void;
+  loadGame: (gameId: string) => void;
+  createGame: (gameMode: 'pvp-local' | 'pvp-online' | 'pve', difficulty?: 'easy' | 'medium' | 'hard') => void;
   leaveGame: () => void;
   updateSettings: (settings: Partial<GameSettings>) => void;
+  setAiDifficulty: (difficulty: 'easy' | 'medium' | 'hard') => void;
 }
 
 type GameAction =
   | { type: 'SET_GAME_STATE'; payload: GameState }
+  | { type: 'SET_GAME_MODE'; payload: 'pvp-local' | 'pvp-online' | 'pve' | null }
   | { type: 'ADD_MOVE'; payload: Move }
   | { type: 'UPDATE_SETTINGS'; payload: Partial<GameSettings> }
   | { type: 'SET_CONNECTION'; payload: boolean }
+  | { type: 'SET_AI_DIFFICULTY'; payload: 'easy' | 'medium' | 'hard' }
   | { type: 'RESET_GAME' };
 
 const initialSettings: GameSettings = {
@@ -29,20 +35,30 @@ const initialSettings: GameSettings = {
 
 interface GameContextState {
   gameState: GameState | null;
+  gameMode: 'pvp-local' | 'pvp-online' | 'pve' | null;
   settings: GameSettings;
   isConnected: boolean;
+  aiDifficulty: 'easy' | 'medium' | 'hard';
 }
 
 const initialState: GameContextState = {
   gameState: null,
+  gameMode: null,
   settings: initialSettings,
   isConnected: false,
+  aiDifficulty: 'medium',
 };
 
 const gameReducer = (state: GameContextState, action: GameAction): GameContextState => {
   switch (action.type) {
     case 'SET_GAME_STATE':
-      return { ...state, gameState: action.payload };
+      return { 
+        ...state, 
+        gameState: action.payload,
+        gameMode: action.payload.gameMode || null
+      };
+    case 'SET_GAME_MODE':
+      return { ...state, gameMode: action.payload };
     case 'ADD_MOVE':
       if (!state.gameState) return state;
       return {
@@ -60,8 +76,10 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
       };
     case 'SET_CONNECTION':
       return { ...state, isConnected: action.payload };
+    case 'SET_AI_DIFFICULTY':
+      return { ...state, aiDifficulty: action.payload };
     case 'RESET_GAME':
-      return { ...state, gameState: null };
+      return { ...state, gameState: null, gameMode: null };
     default:
       return state;
   }
@@ -82,15 +100,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     gamesWon: 7,
   };
 
-  const mockPlayer2: Player = {
-    id: '2',
-    name: 'AI Bot',
-    isOnline: true,
-    rating: 1000,
-    gamesPlayed: 100,
-    gamesWon: 60,
-  };
-
   const createEmptyBoard = (): (string | null)[][] => {
     return Array(19).fill(null).map(() => Array(19).fill(null));
   };
@@ -106,6 +115,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
+    // For PvE mode, don't allow moves when it's AI's turn
+    if (state.gameState.gameMode === 'pve' && 
+        state.gameState.currentPlayer === 'white' && 
+        state.gameState.players.white.id === 'ai') {
+      return;
+    }
+
     const move: Move = {
       id: Date.now().toString(),
       position,
@@ -115,15 +131,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     // Update board
-    const newBoard = board.map((row, rowIndex) =>
-      row.map((cell, colIndex) =>
+    const newBoard = board.map((row: (string | null)[], rowIndex: number) =>
+      row.map((cell: string | null, colIndex: number) =>
         rowIndex === position.row && colIndex === position.col
           ? state.gameState!.currentPlayer
           : cell
       )
     );
 
-    // Check for win condition (simplified - just check if we have 5 in a row)
+    // Check for win condition
     const isWinner = checkWinCondition(newBoard, position, state.gameState.currentPlayer);
 
     const newGameState: GameState = {
@@ -137,6 +153,131 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     dispatch({ type: 'SET_GAME_STATE', payload: newGameState });
+
+    // Handle AI move for PvE mode
+    if (state.gameState.gameMode === 'pve' && 
+        !isWinner && 
+        newGameState.currentPlayer === 'white' && 
+        newGameState.players.white.id === 'ai') {
+      
+      // Simulate AI thinking time
+      setTimeout(() => {
+        makeAIMove(newGameState);
+      }, 500 + Math.random() * 1000); // Random delay between 0.5-1.5 seconds
+    }
+
+    // For online PvP, send move via WebSocket
+    if (state.gameState.gameMode === 'pvp-online' && state.isConnected) {
+      // TODO: Send move via WebSocket
+      console.log('Sending move via WebSocket:', move);
+    }
+  };
+
+  // Simple AI move logic (client-side for demo)
+  const makeAIMove = (gameState: GameState) => {
+    const board = gameState.board;
+    const aiMoves = getAvailableMoves(board);
+    
+    if (aiMoves.length === 0) return;
+
+    // Simple AI strategy based on difficulty
+    let aiMove: Position;
+    
+    switch (state.aiDifficulty) {
+      case 'easy':
+        // Random move
+        aiMove = aiMoves[Math.floor(Math.random() * aiMoves.length)];
+        break;
+        
+      case 'medium':
+        // Try to block or win, otherwise random
+        aiMove = findStrategicMove(board, aiMoves) || aiMoves[Math.floor(Math.random() * aiMoves.length)];
+        break;
+        
+      case 'hard':
+        // More sophisticated strategy (for now, same as medium)
+        aiMove = findStrategicMove(board, aiMoves) || getCenterBiasedMove(board, aiMoves);
+        break;
+        
+      default:
+        aiMove = aiMoves[Math.floor(Math.random() * aiMoves.length)];
+    }
+
+    // Make the AI move
+    const aiMoveData: Move = {
+      id: Date.now().toString(),
+      position: aiMove,
+      playerId: 'ai',
+      timestamp: new Date(),
+      piece: 'white',
+    };
+
+    const newBoard = board.map((row, rowIndex) =>
+      row.map((cell, colIndex) =>
+        rowIndex === aiMove.row && colIndex === aiMove.col ? 'white' : cell
+      )
+    );
+
+    const isWinner = checkWinCondition(newBoard, aiMove, 'white');
+
+    const updatedGameState: GameState = {
+      ...gameState,
+      board: newBoard,
+      moves: [...gameState.moves, aiMoveData],
+      currentPlayer: 'black',
+      status: isWinner ? 'finished' : 'active',
+      winner: isWinner ? 'white' : undefined,
+      updatedAt: new Date(),
+    };
+
+    dispatch({ type: 'SET_GAME_STATE', payload: updatedGameState });
+  };
+
+  const getAvailableMoves = (board: (string | null)[][]): Position[] => {
+    const moves: Position[] = [];
+    for (let row = 0; row < 19; row++) {
+      for (let col = 0; col < 19; col++) {
+        if (board[row][col] === null) {
+          moves.push({ row, col });
+        }
+      }
+    }
+    return moves;
+  };
+
+  const findStrategicMove = (board: (string | null)[][], availableMoves: Position[]): Position | null => {
+    // Check for winning moves first (AI can win)
+    for (const move of availableMoves) {
+      const testBoard = board.map(row => [...row]);
+      testBoard[move.row][move.col] = 'white';
+      if (checkWinCondition(testBoard, move, 'white')) {
+        return move;
+      }
+    }
+
+    // Check for blocking moves (prevent human from winning)
+    for (const move of availableMoves) {
+      const testBoard = board.map(row => [...row]);
+      testBoard[move.row][move.col] = 'black';
+      if (checkWinCondition(testBoard, move, 'black')) {
+        return move; // Block this winning move
+      }
+    }
+
+    return null;
+  };
+
+  const getCenterBiasedMove = (board: (string | null)[][], availableMoves: Position[]): Position => {
+    const center = 9; // Center of 19x19 board
+    
+    // Prefer moves closer to center
+    availableMoves.sort((a, b) => {
+      const distA = Math.abs(a.row - center) + Math.abs(a.col - center);
+      const distB = Math.abs(b.row - center) + Math.abs(b.col - center);
+      return distA - distB;
+    });
+    
+    return availableMoves[0];
   };
 
   const checkWinCondition = (board: (string | null)[][], lastMove: Position, piece: string): boolean => {
@@ -181,19 +322,63 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const joinGame = (gameId: string) => {
-    // TODO: Implement WebSocket connection to join game
+    // TODO: Implement join game logic with WebSocket
     console.log('Joining game:', gameId);
-    dispatch({ type: 'SET_CONNECTION', payload: true });
   };
 
-  const createGame = (gameMode: 'pvp' | 'pve') => {
+  const loadGame = (gameId: string) => {
+    // TODO: Implement load game logic
+    console.log('Loading game:', gameId);
+  };
+
+  const createGame = (gameMode: 'pvp-local' | 'pvp-online' | 'pve', difficulty: 'easy' | 'medium' | 'hard' = 'medium') => {
+    const aiPlayer: Player = {
+      id: 'ai',
+      name: `AI Bot (${difficulty})`,
+      isOnline: true,
+      rating: difficulty === 'easy' ? 800 : difficulty === 'medium' ? 1200 : 1600,
+      gamesPlayed: 100,
+      gamesWon: 60,
+    };
+
+    const player2: Player = {
+      id: '2',
+      name: gameMode === 'pvp-local' ? 'Player 2 (Local)' : 'Player 2 (Online)',
+      isOnline: true,
+      rating: 1200,
+      gamesPlayed: 15,
+      gamesWon: 8,
+    };
+
+    let whitePlayer: Player;
+    let actualGameMode: string;
+
+    switch (gameMode) {
+      case 'pve':
+        whitePlayer = aiPlayer;
+        actualGameMode = 'pve';
+        break;
+      case 'pvp-local':
+        whitePlayer = { ...player2, name: 'Player 2 (Local)' };
+        actualGameMode = 'pvp-local';
+        break;
+      case 'pvp-online':
+        whitePlayer = { ...player2, name: 'Player 2 (Online)' };
+        actualGameMode = 'pvp-online';
+        break;
+      default:
+        whitePlayer = aiPlayer;
+        actualGameMode = 'pve';
+    }
+
     const newGameState: GameState = {
       id: Date.now().toString(),
       board: createEmptyBoard(),
       currentPlayer: 'black',
+      gameMode: actualGameMode as any,
       players: {
         black: mockPlayer1,
-        white: gameMode === 'pve' ? mockPlayer2 : { ...mockPlayer1, id: '3', name: 'Player 2' },
+        white: whitePlayer,
       },
       moves: [],
       status: 'active',
@@ -202,7 +387,40 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     dispatch({ type: 'SET_GAME_STATE', payload: newGameState });
-    dispatch({ type: 'SET_CONNECTION', payload: true });
+    dispatch({ type: 'SET_AI_DIFFICULTY', payload: difficulty });
+    
+    // Set connection status based on game mode
+    if (gameMode === 'pvp-online') {
+      dispatch({ type: 'SET_CONNECTION', payload: true });
+      // TODO: Connect to WebSocket for online play
+      console.log('Creating online game, connecting to WebSocket...');
+    } else {
+      dispatch({ type: 'SET_CONNECTION', payload: false });
+    }
+    
+    console.log('Game created with mode:', gameMode, 'difficulty:', difficulty);
+  };
+
+  const setAiDifficulty = (difficulty: 'easy' | 'medium' | 'hard') => {
+    dispatch({ type: 'SET_AI_DIFFICULTY', payload: difficulty });
+    
+    // Update AI player name in game state if it exists
+    if (state.gameState && state.gameState.gameMode === 'pve') {
+      const updatedGameState = {
+        ...state.gameState,
+        players: {
+          ...state.gameState.players,
+          white: {
+            ...state.gameState.players.white,
+            name: `AI Bot (${difficulty})`,
+            rating: difficulty === 'easy' ? 800 : difficulty === 'medium' ? 1200 : 1600,
+          }
+        }
+      };
+      dispatch({ type: 'SET_GAME_STATE', payload: updatedGameState });
+    }
+    
+    console.log('AI difficulty set to:', difficulty);
   };
 
   const leaveGame = () => {
@@ -218,13 +436,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <GameContext.Provider
       value={{
         gameState: state.gameState,
+        gameMode: state.gameMode,
         settings: state.settings,
         isConnected: state.isConnected,
+        aiDifficulty: state.aiDifficulty,
         makeMove,
         joinGame,
+        loadGame,
         createGame,
         leaveGame,
         updateSettings,
+        setAiDifficulty,
       }}
     >
       {children}
