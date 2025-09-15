@@ -4,6 +4,9 @@ import json
 import asyncio
 from datetime import datetime
 from bson import ObjectId
+from ..game_manager import game_manager
+from ..models.database import database
+from ..models.user import UserPublic
 
 router = APIRouter()
 
@@ -25,7 +28,10 @@ class ConnectionManager:
                 self.game_rooms[game_id] = []
             self.game_rooms[game_id].append(websocket)
 
-    def disconnect(self, websocket: WebSocket, game_id: str = None, user_id: str = None):
+        if is_lobby:
+            self.lobby_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket, game_id: str = None, user_id: str = None, is_lobby: bool = False):
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
         
@@ -37,6 +43,9 @@ class ConnectionManager:
                 self.game_rooms[game_id].remove(websocket)
             if not self.game_rooms[game_id]:
                 del self.game_rooms[game_id]
+        
+        if is_lobby and websocket in self.lobby_connections:
+            self.lobby_connections.remove(websocket)
 
     async def send_personal_message(self, message: str, websocket: WebSocket):
         try:
@@ -52,6 +61,7 @@ class ConnectionManager:
             except:
                 del self.user_connections[user_id]
 
+
     async def broadcast_to_room(self, message: str, game_id: str, exclude_websocket: Optional[WebSocket] = None):
         if game_id in self.game_rooms:
             disconnected = []
@@ -66,17 +76,26 @@ class ConnectionManager:
             for conn in disconnected:
                 self.game_rooms[game_id].remove(conn)
 
-    async def broadcast_to_all(self, message: str):
+    async def broadcast_to_lobby(self, message: str):
         disconnected = []
-        for connection in self.active_connections:
+        for connection in self.lobby_connections:
             try:
                 await connection.send_text(message)
             except:
                 disconnected.append(connection)
-        
-        # Remove dead connections
+
         for conn in disconnected:
-            self.active_connections.remove(conn)
+            self.lobby_connections.remove(conn)
+
+    async def notify_game_start(self, game_info: Dict):
+        message = {
+            "type": "game_start",
+            "game_id": game_info["game_id"],
+            "players": game_info["players"]
+        }
+        
+        for player in game_info["players"]:
+            await self.send_to_user(player["id"], json.dumps(message))
 
     async def notify_game_update(self, game_id: str, update_data: dict):
         """Send game state update to all players in a game"""
@@ -179,35 +198,40 @@ async def websocket_game_endpoint(websocket: WebSocket, game_id: str, user_id: s
         }
         await manager.broadcast_to_room(json.dumps(disconnect_message), game_id)
 
-@router.websocket("/lobby")
-async def websocket_lobby_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
-    
+@router.websocket("/lobby/{user_id}")
+async def websocket_lobby_endpoint(websocket: WebSocket, user_id: str):
+    user_doc = await database.users.find_one({"_id": ObjectId(user_id)})
+
+    if not user_doc:
+        await websocket.close(code=1008, reason="User not found")
+        return
+        
+    user_doc['id'] = str(user_doc['_id'])
+    del user_doc['_id']
+    user = UserPublic(**user_doc).dict()
+
+    await manager.connect(websocket, user_id=user_id, is_lobby=True)
     try:
-        # Send welcome message
-        await manager.send_personal_message(
-            json.dumps({
-                "type": "connected",
-                "message": "Connected to lobby",
-                "timestamp": datetime.utcnow().isoformat()
-            }),
-            websocket
-        )
+        await manager.broadcast_queue_update()
         
         while True:
             data = await websocket.receive_text()
             message_data = json.loads(data)
             
-            # Handle lobby messages
-            if message_data.get("type") == "lobby_chat":
-                chat_message = {
-                    "type": "lobby_chat",
-                    "user_id": message_data.get("user_id"),
-                    "username": message_data.get("username"),
-                    "message": message_data.get("message"),
-                    "timestamp": datetime.utcnow().isoformat()
-                }
-                await manager.broadcast_to_all(json.dumps(chat_message))
+            if message_data.get("type") == "join_queue":
+                game_manager.add_player_to_queue(user)
+                await manager.broadcast_queue_update()
+                
+                new_game = game_manager.start_new_game()
+                if new_game:
+                    await manager.notify_game_start(new_game)
+                    await manager.broadcast_queue_update()
+
+            elif message_data.get("type") == "leave_queue":
+                game_manager.remove_player_from_queue(user)
+                await manager.broadcast_queue_update()
                 
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
+        game_manager.remove_player_from_queue(user)
+        manager.disconnect(websocket, user_id=user_id, is_lobby=True)
+        await manager.broadcast_queue_update()
