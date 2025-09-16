@@ -1,12 +1,11 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from typing import List, Dict, Optional
 import json
-import asyncio
 from datetime import datetime
 from bson import ObjectId
-from ..game_manager import game_manager
-from ..models.database import database
-from ..models.user import UserPublic
+
+from database import get_collection
+from models.user import UserPublic
 
 router = APIRouter()
 
@@ -15,8 +14,9 @@ class ConnectionManager:
         self.active_connections: List[WebSocket] = []
         self.game_rooms: Dict[str, List[WebSocket]] = {}
         self.user_connections: Dict[str, WebSocket] = {}
+        self.lobby_connections: List[WebSocket] = []
 
-    async def connect(self, websocket: WebSocket, game_id: str = None, user_id: str = None):
+    async def connect(self, websocket: WebSocket, game_id: str = None, user_id: str = None, is_lobby: bool = False):
         await websocket.accept()
         self.active_connections.append(websocket)
         
@@ -50,7 +50,7 @@ class ConnectionManager:
     async def send_personal_message(self, message: str, websocket: WebSocket):
         try:
             await websocket.send_text(message)
-        except:
+        except Exception:
             if websocket in self.active_connections:
                 self.active_connections.remove(websocket)
 
@@ -58,7 +58,7 @@ class ConnectionManager:
         if user_id in self.user_connections:
             try:
                 await self.user_connections[user_id].send_text(message)
-            except:
+            except Exception:
                 del self.user_connections[user_id]
 
 
@@ -69,7 +69,7 @@ class ConnectionManager:
                 if connection != exclude_websocket:
                     try:
                         await connection.send_text(message)
-                    except:
+                    except Exception:
                         disconnected.append(connection)
             
             # Remove dead connections
@@ -81,7 +81,7 @@ class ConnectionManager:
         for connection in self.lobby_connections:
             try:
                 await connection.send_text(message)
-            except:
+            except Exception:
                 disconnected.append(connection)
 
         for conn in disconnected:
@@ -126,6 +126,16 @@ class ConnectionManager:
             "timestamp": datetime.utcnow().isoformat()
         }
         await self.broadcast_to_room(json.dumps(message), game_id)
+
+    async def broadcast_queue_update(self):
+        """Send queue update to all lobby connections"""
+        queue_data = game_manager.get_queue_status()
+        message = {
+            "type": "queue_update",
+            "queue": queue_data,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        await self.broadcast_to_lobby(json.dumps(message))
 
 manager = ConnectionManager()
 
@@ -200,7 +210,8 @@ async def websocket_game_endpoint(websocket: WebSocket, game_id: str, user_id: s
 
 @router.websocket("/lobby/{user_id}")
 async def websocket_lobby_endpoint(websocket: WebSocket, user_id: str):
-    user_doc = await database.users.find_one({"_id": ObjectId(user_id)})
+    users_collection = await get_collection("users")
+    user_doc = await users_collection.find_one({"_id": ObjectId(user_id)})
 
     if not user_doc:
         await websocket.close(code=1008, reason="User not found")
@@ -208,7 +219,8 @@ async def websocket_lobby_endpoint(websocket: WebSocket, user_id: str):
         
     user_doc['id'] = str(user_doc['_id'])
     del user_doc['_id']
-    user = UserPublic(**user_doc).dict()
+    del user_doc['password_hash']  # Remove sensitive data
+    user = UserPublic(**user_doc)
 
     await manager.connect(websocket, user_id=user_id, is_lobby=True)
     try:
@@ -219,7 +231,7 @@ async def websocket_lobby_endpoint(websocket: WebSocket, user_id: str):
             message_data = json.loads(data)
             
             if message_data.get("type") == "join_queue":
-                game_manager.add_player_to_queue(user)
+                game_manager.add_player_to_queue(user.dict())
                 await manager.broadcast_queue_update()
                 
                 new_game = game_manager.start_new_game()
@@ -228,10 +240,10 @@ async def websocket_lobby_endpoint(websocket: WebSocket, user_id: str):
                     await manager.broadcast_queue_update()
 
             elif message_data.get("type") == "leave_queue":
-                game_manager.remove_player_from_queue(user)
+                game_manager.remove_player_from_queue(user.dict())
                 await manager.broadcast_queue_update()
                 
     except WebSocketDisconnect:
-        game_manager.remove_player_from_queue(user)
+        game_manager.remove_player_from_queue(user.dict())
         manager.disconnect(websocket, user_id=user_id, is_lobby=True)
         await manager.broadcast_queue_update()

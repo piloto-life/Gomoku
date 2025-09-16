@@ -2,41 +2,90 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useGame } from '../contexts/GameContext';
+import { useUI } from '../contexts/UIContext';
+import SettingsPanel from '../components/SettingsPanel';
+import PlayerAvatar from '../components/PlayerAvatar';
+import ChatComponent from '../components/ChatComponent';
+import VideoChat from '../components/VideoChat';
+import RankingSystem from '../components/RankingSystem';
+import ScreenRecorder from '../components/ScreenRecorder';
+import '../components/UIComponents.css';
+import './Lobby.css';
 
 interface OnlinePlayer {
   id: string;
   name: string;
   rating: number;
+  avatar?: string;
+}
+
+interface ChatMessage {
+  id: string;
+  userId: string;
+  username: string;
+  message: string;
+  timestamp: Date;
+  type: 'system' | 'user';
 }
 
 const Lobby: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const { createGame, aiDifficulty, setAiDifficulty } = useGame();
+  const { settings } = useUI();
   const navigate = useNavigate();
+  
+  // Game state
   const [selectedGameMode, setSelectedGameMode] = useState<'pvp-local' | 'pvp-online' | 'pve'>('pvp-local');
   const [waitingQueue, setWaitingQueue] = useState<OnlinePlayer[]>([]);
+  
+  // UI state
+  const [showSettings, setShowSettings] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [userRanking, setUserRanking] = useState({ rank: 0, rating: 1200, wins: 0, losses: 0 });
+  
+  // WebSocket
   const ws = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      const wsUrl = `ws://localhost:8000/ws/lobby/${user.id}`; // Adjust the URL to your backend
+      const wsUrl = `ws://localhost:8000/ws/lobby/${user.id}`;
       ws.current = new WebSocket(wsUrl);
 
       ws.current.onopen = () => {
         console.log("Connected to lobby WebSocket");
       };
 
-      ws.current.onmessage = (event) => {
+      ws.current.onerror = (error) => {
+        console.error("WebSocket error:", error);
+      };
+
+      ws.current.onmessage = (event: MessageEvent) => {
         const message = JSON.parse(event.data);
-        if (message.type === 'queue_update') {
-          setWaitingQueue(message.queue);
-        }
-        if (message.type === 'game_start') {
-          // If the user is part of the new game, navigate to the game page
-          const playerIds = message.players.map((p: OnlinePlayer) => p.id);
-          if (playerIds.includes(user.id)) {
-            navigate(`/game/${message.game_id}`);
-          }
+        
+        switch (message.type) {
+          case 'queue_update':
+            setWaitingQueue(message.queue);
+            break;
+          case 'game_start':
+            const playerIds = message.players.map((p: OnlinePlayer) => p.id);
+            if (playerIds.includes(user.id)) {
+              navigate(`/game/${message.game_id}`);
+            }
+            break;
+          case 'chat_message':
+            const newMessage: ChatMessage = {
+              id: Date.now().toString(),
+              userId: message.userId,
+              username: message.userName,
+              message: message.message,
+              timestamp: new Date(message.timestamp),
+              type: 'user'
+            };
+            setChatMessages(prev => [...prev, newMessage]);
+            break;
+          case 'user_stats':
+            setUserRanking(message.stats);
+            break;
         }
       };
 
@@ -62,40 +111,267 @@ const Lobby: React.FC = () => {
     }
   };
 
-  const isUserInQueue = waitingQueue.some(player => player.id === user?.id);
+  const handleSendMessage = (message: string) => {
+    if (ws.current?.readyState === WebSocket.OPEN && user) {
+      ws.current.send(JSON.stringify({
+        type: 'chat_message',
+        message,
+        userId: user.id,
+        userName: user.name
+      }));
+    }
+  };
 
-  // ... (keep the rest of your component's JSX)
+  const isUserInQueue = waitingQueue.some((player: OnlinePlayer) => player.id === user?.id);
 
-  // In your JSX, replace the existing "Entrar na Fila" button with this:
-  {selectedGameMode === 'pvp-online' && (
-    !isUserInQueue ? (
-      <button onClick={handleJoinQueue} className="btn btn-secondary">
-        Entrar na Fila
-      </button>
-    ) : (
-      <button onClick={handleLeaveQueue} className="btn btn-danger">
-        Sair da Fila
-      </button>
-    )
-  )}
+  const handleCreateGame = async () => {
+    try {
+      await createGame(selectedGameMode, aiDifficulty);
+      navigate('/game');
+    } catch (error) {
+      console.error('Erro ao criar jogo:', error);
+    }
+  };
 
-  // And replace the waitingQueue.map with this, so it uses the state:
-  <div className="section">
-    <h2>Fila de Espera ({waitingQueue.length})</h2>
-    <div className="queue-list">
-      {waitingQueue.length === 0 ? (
-        <p>Nenhum jogador na fila</p>
-      ) : (
-        waitingQueue.map((player, index) => (
-          <div key={player.id} className="queue-item">
-            <span className="queue-position">#{index + 1}</span>
-            <span className="player-name">{player.name}</span>
-            <span className="player-rating">Rating: {player.rating}</span>
+  if (!isAuthenticated) {
+    return (
+      <div className="lobby-container error-state">
+        <div className="error-content">
+          <i className="fas fa-lock icon-large"></i>
+          <h1>Acesso Restrito</h1>
+          <p>Você precisa fazer login para acessar o lobby</p>
+          <button onClick={() => navigate('/login')} className="btn btn-primary">
+            Fazer Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`lobby-container ${settings.theme}`} data-theme={settings.theme}>
+      {/* Header */}
+      <header className="lobby-header">
+        <div className="header-left">
+          <h1>
+            <i className="fas fa-chess-board"></i>
+            Lobby do Gomoku
+          </h1>
+          <div className="user-info">
+            <span>Bem-vindo, {user?.name}!</span>
+            <div className="user-stats">
+              <span>Rank: #{userRanking.rank}</span>
+              <span>Rating: {userRanking.rating}</span>
+            </div>
           </div>
-        ))
+        </div>
+        
+        <div className="header-right">
+          <button 
+            className="settings-toggle-btn"
+            onClick={() => setShowSettings(!showSettings)}
+            title="Configurações"
+          >
+            <i className="fas fa-cog"></i>
+          </button>
+        </div>
+      </header>
+
+      <div className="lobby-content">
+        {/* Main Content */}
+        <div className="main-section">
+          {/* Player Profile */}
+          <div className="profile-section">
+            <PlayerAvatar 
+              size="large"
+              editable={true}
+            />
+            <div className="player-stats">
+              <h3>Estatísticas</h3>
+              <div className="stats-grid">
+                <div className="stat-item">
+                  <span className="stat-value">{userRanking.wins}</span>
+                  <span className="stat-label">Vitórias</span>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-value">{userRanking.losses}</span>
+                  <span className="stat-label">Derrotas</span>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-value">
+                    {userRanking.wins + userRanking.losses > 0 
+                      ? Math.round((userRanking.wins / (userRanking.wins + userRanking.losses)) * 100)
+                      : 0}%
+                  </span>
+                  <span className="stat-label">Taxa de Vitória</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Game Modes */}
+          <div className="game-modes-section">
+            <h2>
+              <i className="fas fa-gamepad"></i>
+              Modos de Jogo
+            </h2>
+            <div className="mode-grid">
+              <div 
+                className={`game-mode-card ${selectedGameMode === 'pvp-local' ? 'selected' : ''}`}
+                onClick={() => setSelectedGameMode('pvp-local')}
+              >
+                <i className="fas fa-users"></i>
+                <h3>PvP Local</h3>
+                <p>Jogue contra um amigo no mesmo dispositivo</p>
+              </div>
+              
+              <div 
+                className={`game-mode-card ${selectedGameMode === 'pvp-online' ? 'selected' : ''}`}
+                onClick={() => setSelectedGameMode('pvp-online')}
+              >
+                <i className="fas fa-globe"></i>
+                <h3>PvP Online</h3>
+                <p>Encontre oponentes online</p>
+              </div>
+              
+              <div 
+                className={`game-mode-card ${selectedGameMode === 'pve' ? 'selected' : ''}`}
+                onClick={() => setSelectedGameMode('pve')}
+              >
+                <i className="fas fa-robot"></i>
+                <h3>PvE (vs IA)</h3>
+                <p>Desafie a inteligência artificial</p>
+              </div>
+            </div>
+
+            {/* AI Difficulty Selection */}
+            {selectedGameMode === 'pve' && (
+              <div className="ai-difficulty-section">
+                <h3>Dificuldade da IA</h3>
+                <div className="difficulty-options">
+                  {['easy', 'medium', 'hard'].map((difficulty) => (
+                    <button
+                      key={difficulty}
+                      className={`difficulty-btn ${aiDifficulty === difficulty ? 'selected' : ''}`}
+                      onClick={() => setAiDifficulty(difficulty as 'easy' | 'medium' | 'hard')}
+                    >
+                      <i className={`fas ${
+                        difficulty === 'easy' ? 'fa-seedling' : 
+                        difficulty === 'medium' ? 'fa-fire' : 'fa-bolt'
+                      }`}></i>
+                      {difficulty === 'easy' ? 'Fácil' : 
+                       difficulty === 'medium' ? 'Médio' : 'Difícil'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Online Queue */}
+            {selectedGameMode === 'pvp-online' && (
+              <div className="online-queue-section">
+                <div className="queue-controls">
+                  {!isUserInQueue ? (
+                    <button onClick={handleJoinQueue} className="btn btn-primary">
+                      <i className="fas fa-play"></i>
+                      Entrar na Fila
+                    </button>
+                  ) : (
+                    <button onClick={handleLeaveQueue} className="btn btn-danger">
+                      <i className="fas fa-stop"></i>
+                      Sair da Fila
+                    </button>
+                  )}
+                </div>
+                
+                <div className="queue-display">
+                  <h3>
+                    <i className="fas fa-clock"></i>
+                    Fila de Espera ({waitingQueue.length})
+                  </h3>
+                  <div className="queue-list">
+                    {waitingQueue.length === 0 ? (
+                      <div className="empty-queue">
+                        <i className="fas fa-user-plus"></i>
+                        <p>Nenhum jogador na fila</p>
+                      </div>
+                    ) : (
+                      waitingQueue.map((player: OnlinePlayer, index: number) => (
+                        <div key={player.id} className="queue-item">
+                          <span className="queue-position">#{index + 1}</span>
+                          <div className="player-info">
+                            {player.avatar && (
+                              <img src={player.avatar} alt="Avatar" className="queue-avatar" />
+                            )}
+                            <div className="player-details">
+                              <span className="player-name">{player.name}</span>
+                              <span className="player-rating">Rating: {player.rating}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Start Game Button */}
+            {(selectedGameMode === 'pvp-local' || selectedGameMode === 'pve') && (
+              <div className="start-game-section">
+                <button onClick={handleCreateGame} className="btn btn-primary btn-large">
+                  <i className="fas fa-play"></i>
+                  Iniciar Jogo
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <div className="sidebar">
+          {/* Ranking System */}
+          <RankingSystem 
+            showGlobalRanking={true}
+            maxPlayers={10}
+            className="lobby-ranking"
+          />
+
+          {/* Chat */}
+          {settings.showChat && (
+            <ChatComponent
+              messages={chatMessages}
+              onSendMessage={handleSendMessage}
+              isGameChat={false}
+            />
+          )}
+
+          {/* Video Chat */}
+          {settings.showVideoChat && (
+            <VideoChat 
+              isInGame={false}
+            />
+          )}
+
+          {/* Screen Recorder */}
+          <ScreenRecorder 
+            isInGame={false}
+            onRecordingStart={() => console.log('Recording started')}
+            onRecordingStop={(blob) => console.log('Recording stopped, blob size:', blob.size)}
+            onRecordingError={(error) => console.error('Recording error:', error)}
+          />
+        </div>
+      </div>
+
+      {/* Settings Panel */}
+      {showSettings && (
+        <SettingsPanel 
+          isOpen={showSettings}
+          onClose={() => setShowSettings(false)}
+        />
       )}
     </div>
-  </div>
+  );
 };
 
 export default Lobby;

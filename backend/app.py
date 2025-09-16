@@ -1,13 +1,12 @@
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from contextlib import asynccontextmanager
 import uvicorn
-import os
 from dotenv import load_dotenv
 
 from database import connect_to_mongo, close_mongo_connection
-from routers import auth, games, users, websocket
+from routers import auth, users, websocket_games
+from routers.games import router as games_router
 from models.database import database
 
 load_dotenv()
@@ -41,8 +40,8 @@ app.add_middleware(
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
-app.include_router(games.router, prefix="/api/games", tags=["games"])
-app.include_router(websocket.router, prefix="/ws", tags=["websocket"])
+app.include_router(games_router, prefix="/api/games", tags=["games"])
+app.include_router(websocket_games.router, prefix="/ws", tags=["websocket-games"])
 
 @app.get("/")
 async def root():

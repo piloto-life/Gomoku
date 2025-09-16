@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useReducer } from 'react';
+import React, { createContext, useContext, useReducer, useCallback } from 'react';
 import { GameState, Move, Position, Player, GameSettings } from '../types';
+import { gamesAPI } from '../services/api';
+import { useGameWebSocket } from '../hooks/useGameWebSocket';
 
 interface GameContextType {
   gameState: GameState | null;
@@ -10,7 +12,7 @@ interface GameContextType {
   makeMove: (position: Position) => void;
   joinGame: (gameId: string) => void;
   loadGame: (gameId: string) => void;
-  createGame: (gameMode: 'pvp-local' | 'pvp-online' | 'pve', difficulty?: 'easy' | 'medium' | 'hard') => void;
+  createGame: (gameMode: 'pvp-local' | 'pvp-online' | 'pve', difficulty?: 'easy' | 'medium' | 'hard') => Promise<void>;
   leaveGame: () => void;
   updateSettings: (settings: Partial<GameSettings>) => void;
   setAiDifficulty: (difficulty: 'easy' | 'medium' | 'hard') => void;
@@ -98,6 +100,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     rating: 1200,
     gamesPlayed: 10,
     gamesWon: 7,
+  };
+
+  const mockPlayer2: Player = {
+    id: '2',
+    name: 'Player 2',
+    isOnline: true,
+    rating: 1100,
+    gamesPlayed: 8,
+    gamesWon: 5,
   };
 
   const createEmptyBoard = (): (string | null)[][] => {
@@ -331,7 +342,44 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('Loading game:', gameId);
   };
 
-  const createGame = (gameMode: 'pvp-local' | 'pvp-online' | 'pve', difficulty: 'easy' | 'medium' | 'hard' = 'medium') => {
+  const createGame = async (gameMode: 'pvp-local' | 'pvp-online' | 'pve', difficulty: 'easy' | 'medium' | 'hard' = 'medium') => {
+    try {
+      // For online games, use the backend API
+      if (gameMode === 'pvp-online' || gameMode === 'pve') {
+        const gameData = await gamesAPI.createGame(gameMode, difficulty);
+        
+        // Convert backend game data to frontend format
+        const newGameState: GameState = {
+          id: gameData.id,
+          board: Array(19).fill(null).map(() => Array(19).fill(null)),
+          currentPlayer: 'black',
+          gameMode: gameMode,
+          players: {
+            black: mockPlayer1,
+            white: gameMode === 'pve' ? {
+              id: 'ai',
+              name: `AI Bot (${difficulty})`,
+              isOnline: true,
+              rating: difficulty === 'easy' ? 800 : difficulty === 'medium' ? 1200 : 1600,
+              gamesPlayed: 100,
+              gamesWon: 60,
+            } : mockPlayer2
+          },
+          moves: [],
+          status: 'waiting',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+
+        dispatch({ type: 'SET_GAME_STATE', payload: newGameState });
+        return;
+      }
+    } catch (error) {
+      console.error('Failed to create game:', error);
+      // Fall back to local game creation
+    }
+
+    // Local game creation (fallback or for pvp-local)
     const aiPlayer: Player = {
       id: 'ai',
       name: `AI Bot (${difficulty})`,

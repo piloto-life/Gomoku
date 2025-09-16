@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { User, LoginCredentials, RegisterData, AuthResponse } from '../types';
+import { authAPI } from '../services/api';
 
 interface AuthState {
   user: User | null;
@@ -76,26 +77,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      // TODO: Validate token and get user info
-      // For now, we'll use mock data
-      const mockUser: User = {
-        id: '1',
-        name: 'Player 1',
-        email: 'player1@example.com',
-        stats: {
-          gamesPlayed: 10,
-          gamesWon: 7,
-          gamesLost: 3,
-          rating: 1200,
-          winRate: 70,
-        },
-        createdAt: new Date(),
-        lastSeen: new Date(),
-      };
-      
-      dispatch({
-        type: 'AUTH_SUCCESS',
-        payload: { user: mockUser, token, refreshToken: '' }
+      // Validate token and get user info
+      authAPI.validateToken().then((isValid) => {
+        if (isValid) {
+          authAPI.getCurrentUser().then((user) => {
+            dispatch({
+              type: 'AUTH_SUCCESS',
+              payload: { user, token, refreshToken: '' }
+            });
+          }).catch(() => {
+            localStorage.removeItem('token');
+            dispatch({ type: 'LOGOUT' });
+          });
+        } else {
+          localStorage.removeItem('token');
+          dispatch({ type: 'LOGOUT' });
+        }
+      }).catch(() => {
+        localStorage.removeItem('token');
+        dispatch({ type: 'LOGOUT' });
       });
     }
   }, []);
@@ -103,68 +103,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (credentials: LoginCredentials) => {
     dispatch({ type: 'AUTH_START' });
     try {
-      // TODO: Replace with real API call
-      // const response = await authAPI.login(credentials);
-      
-      // Mock response for development
-      const mockResponse: AuthResponse = {
-        user: {
-          id: '1',
-          name: 'Player 1',
-          email: credentials.email,
-          stats: {
-            gamesPlayed: 10,
-            gamesWon: 7,
-            gamesLost: 3,
-            rating: 1200,
-            winRate: 70,
-          },
-          createdAt: new Date(),
-          lastSeen: new Date(),
-        },
-        token: 'mock-jwt-token',
-        refreshToken: 'mock-refresh-token',
-      };
-
-      localStorage.setItem('token', mockResponse.token);
-      dispatch({ type: 'AUTH_SUCCESS', payload: mockResponse });
-    } catch (error) {
-      dispatch({ type: 'AUTH_ERROR', payload: 'Login failed' });
+      const response = await authAPI.login(credentials);
+      localStorage.setItem('token', response.token);
+      dispatch({ type: 'AUTH_SUCCESS', payload: response });
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.detail || 'Login failed';
+      dispatch({ type: 'AUTH_ERROR', payload: errorMessage });
+      throw error;
     }
   };
 
   const register = async (data: RegisterData) => {
     dispatch({ type: 'AUTH_START' });
     try {
-      // TODO: Replace with real API call
-      // const response = await authAPI.register(data);
-      
-      // Mock response for development
-      const mockResponse: AuthResponse = {
-        user: {
-          id: '2',
-          name: data.name,
-          email: data.email,
-          age: data.age,
-          location: data.location,
-          stats: {
-            gamesPlayed: 0,
-            gamesWon: 0,
-            gamesLost: 0,
-            rating: 1000,
-            winRate: 0,
-          },
-          createdAt: new Date(),
-          lastSeen: new Date(),
-        },
-        token: 'mock-jwt-token',
-        refreshToken: 'mock-refresh-token',
-      };
-
-      localStorage.setItem('token', mockResponse.token);
-      dispatch({ type: 'AUTH_SUCCESS', payload: mockResponse });
-    } catch (error) {
-      dispatch({ type: 'AUTH_ERROR', payload: 'Registration failed' });
+      const response = await authAPI.register(data);
+      localStorage.setItem('token', response.token);
+      dispatch({ type: 'AUTH_SUCCESS', payload: response });
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.detail || 'Registration failed';
+      dispatch({ type: 'AUTH_ERROR', payload: errorMessage });
+      throw error;
     }
   };
 

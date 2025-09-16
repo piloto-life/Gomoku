@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, Dict, Any
+from typing import Optional
 from datetime import datetime
 from bson import ObjectId
 
@@ -66,6 +66,19 @@ class UserInDB(UserBase):
 class User(UserBase):
     id: str = Field(alias="_id")
     stats: UserStats
+    created_at: datetime
+    last_login: Optional[datetime] = None
+
+    class Config:
+        allow_population_by_field_name = True
+
+class UserPublic(BaseModel):
+    id: str
+    username: str
+    email: EmailStr
+    profile: UserProfile
+    stats: UserStats
+    is_active: bool
     created_at: datetime
     last_login: Optional[datetime] = None
 

@@ -32,6 +32,10 @@ class GameManager:
             }
         return None
 
+    def get_queue_status(self) -> List[Dict]:
+        """Return the current waiting queue as a list"""
+        return list(self.waiting_queue)
+
     def handle_game_end(self, winner: Dict, loser: Dict):
         # Remove players from the current game
         self.current_players = [p for p in self.current_players if p['id'] not in [winner['id'], loser['id']]]

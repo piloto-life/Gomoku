@@ -7,7 +7,7 @@ from passlib.context import CryptContext
 import os
 from typing import Optional
 
-from models.user import UserCreate, UserInDB, User, UserProfile, Location
+from models.user import UserCreate, UserInDB, User, UserProfile, Location, UserPublic
 from database import get_collection
 
 router = APIRouter()
@@ -21,7 +21,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 class Token(BaseModel):
     access_token: str
     token_type: str
-    user: User
+    user: UserPublic
 
 class LoginRequest(BaseModel):
     email: str
@@ -68,10 +68,22 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise credentials_exception
     
     users_collection = await get_collection("users")
-    user = await users_collection.find_one({"_id": user_id})
+    # Convert string to ObjectId for MongoDB query
+    from bson import ObjectId
+    try:
+        user = await users_collection.find_one({"_id": ObjectId(user_id)})
+    except Exception:
+        raise credentials_exception
+    
     if user is None:
         raise credentials_exception
-    return User(**user)
+    
+    # Convert to UserPublic for safe return
+    user['id'] = str(user['_id'])
+    del user['_id']
+    del user['password_hash']  # Remove sensitive data
+    
+    return UserPublic(**user)
 
 @router.post("/register", response_model=Token)
 async def register(request: RegisterRequest):
@@ -117,7 +129,10 @@ async def register(request: RegisterRequest):
     
     # Get created user
     created_user = await users_collection.find_one({"_id": result.inserted_id})
-    user = User(**created_user)
+    created_user['id'] = str(created_user['_id'])
+    del created_user['_id']
+    del created_user['password_hash']  # Remove sensitive data
+    user = UserPublic(**created_user)
     
     return Token(access_token=access_token, token_type="bearer", user=user)
 
@@ -147,9 +162,14 @@ async def login(request: LoginRequest):
         data={"sub": str(user_doc["_id"])}, expires_delta=access_token_expires
     )
     
-    user = User(**user_doc)
+    user_doc['id'] = str(user_doc['_id'])
+    del user_doc['_id']
+    del user_doc['password_hash']  # Remove sensitive data
+    user = UserPublic(**user_doc)
     return Token(access_token=access_token, token_type="bearer", user=user)
 
-@router.get("/me", response_model=User)
+@router.get("/me", response_model=UserPublic)
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
-    return current_user
+    # Convert User to UserPublic (remove sensitive data)
+    user_dict = current_user.dict()
+    return UserPublic(**user_dict)
