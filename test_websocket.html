@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test WebSocket</title>
+</head>
+<body>
+    <h1>WebSocket Test</h1>
+    <div id="status">Disconnected</div>
+    <div id="logs"></div>
+    
+    <script>
+        const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2OGM4YTgxNTRkOGZmNmY5ODY1NTE4ZjIiLCJleHAiOjE3NTgzNjk4ODZ9.RixiimYsQ2968tbn0QBHHvbsTD0kWteJGwJe58H5u-8';
+        const wsUrl = `ws://localhost:9000/ws/lobby?token=${token}`;
+        
+        console.log('Attempting WebSocket connection to:', wsUrl);
+        document.getElementById('status').textContent = 'Connecting...';
+        
+        const ws = new WebSocket(wsUrl);
+        
+        ws.onopen = function(event) {
+            console.log('WebSocket connected:', event);
+            document.getElementById('status').textContent = 'Connected!';
+            document.getElementById('logs').innerHTML += '<p>Connected!</p>';
+            
+            // Send a test message
+            ws.send('Hello from browser!');
+        };
+        
+        ws.onmessage = function(event) {
+            console.log('Message received:', event.data);
+            document.getElementById('logs').innerHTML += '<p>Message: ' + event.data + '</p>';
+        };
+        
+        ws.onerror = function(error) {
+            console.error('WebSocket error:', error);
+            document.getElementById('status').textContent = 'Error!';
+            document.getElementById('logs').innerHTML += '<p>Error: ' + error + '</p>';
+        };
+        
+        ws.onclose = function(event) {
+            console.log('WebSocket closed:', event.code, event.reason);
+            document.getElementById('status').textContent = 'Closed: ' + event.code + ' - ' + event.reason;
+            document.getElementById('logs').innerHTML += '<p>Closed: ' + event.code + ' - ' + event.reason + '</p>';
+        };
+    </script>
+</body>
+</html>

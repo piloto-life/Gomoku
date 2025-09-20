@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from routers.auth import get_current_user
 from database import get_collection
 from models.user import UserPublic
+from .websocket_games import game_manager
 
 router = APIRouter()
 
@@ -28,7 +29,9 @@ class MoveRequest(BaseModel):
 async def create_game(request: CreateGameRequest, current_user: UserPublic = Depends(get_current_user)):
     """Create a new game with specified mode and difficulty"""
     try:
+        print(f"🎮 Creating game - Mode: {request.mode}, User: {current_user.username}")
         games_collection = await get_collection("games")
+        print(f"✅ Got games collection")
         
         # Create game document
         game_doc = {
@@ -48,6 +51,7 @@ async def create_game(request: CreateGameRequest, current_user: UserPublic = Dep
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         }
+        print(f"📄 Game document created")
         
         # Add AI player for PvE mode
         if request.mode == "pve":
@@ -56,20 +60,34 @@ async def create_game(request: CreateGameRequest, current_user: UserPublic = Dep
                 "username": f"AI ({request.difficulty})",
                 "email": "ai@gomoku.com"
             }
+            print(f"🤖 Added AI player for PvE mode")
         
+        print(f"💾 Inserting game into database...")
         result = await games_collection.insert_one(game_doc)
+        print(f"✅ Game inserted with ID: {result.inserted_id}")
         
-        return GameResponse(
+        response = GameResponse(
             id=str(result.inserted_id),
             mode=request.mode,
             status="waiting",
             created_at=game_doc["created_at"]
         )
+        print("📡 Broadcasting to lobby...")
+        # Convert datetime to ISO string for JSON serialization
+        game_data = response.dict()
+        game_data["created_at"] = game_doc["created_at"].isoformat()
+        await game_manager.broadcast_to_lobby({"type": "game_created", "game": game_data})
+        print("✅ Game creation completed successfully")
+        return response
         
-    except Exception:
+    except Exception as e:
+        print(f"❌ Error creating game: {str(e)}")
+        print(f"❌ Error type: {type(e).__name__}")
+        import traceback
+        print(f"❌ Traceback: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create game"
+            detail=f"Failed to create game: {str(e)}"
         )
 
 @router.get("/")
@@ -193,3 +211,17 @@ async def make_move(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to make move"
         )
+
+@router.post("/{game_id}/leave")
+async def leave_game(game_id: str, current_user: UserPublic = Depends(get_current_user)):
+    """Handle a user leaving a game."""
+    games_collection = await get_collection("games")
+    
+    game = await games_collection.find_one({"_id": ObjectId(game_id)})
+    if not game:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")
+
+    # In a real scenario, you might want to handle this differently,
+    # e.g., mark the game as abandoned, declare the other player the winner, etc.
+    # For now, we'll just acknowledge the request.
+    return {"success": True, "message": "You have left the game."}

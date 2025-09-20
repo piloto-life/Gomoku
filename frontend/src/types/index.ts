@@ -61,7 +61,6 @@ export interface User {
     gamesWon: number;
     gamesLost: number;
     rating: number;
-    winRate: number;
   };
   createdAt: Date;
   lastSeen: Date;
@@ -75,6 +74,7 @@ export interface LoginCredentials {
 
 export interface RegisterData {
   name: string;
+  username: string;
   email: string;
   password: string;
   age?: number;

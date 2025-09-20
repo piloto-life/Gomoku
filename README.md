@@ -81,23 +81,47 @@ backend/
 
 ## 🔧 Instalação e Execução
 
-### Versão Atual (Console Python)
+### Modo Produção
 ```bash
 # Clone o repositório
 git clone https://github.com/Coelho50/Gomoku.git
 cd Gomoku
 
-# Execute o jogo
+# Execute em modo produção
+docker-compose up -d
+```
+
+### Modo Desenvolvimento
+```bash
+# Execute com MongoDB Admin Interface
+docker-compose --profile debug up
+
+# Ou usando o script PowerShell
+.\dev.ps1
+```
+
+### Modo Debug (Para Desenvolvimento)
+```bash
+# Execute em modo debug completo (com debugger Python)
+docker-compose -f docker-compose.yml -f docker-compose.debug.yml up
+
+# Ou usando o script PowerShell
+.\debug.ps1
+```
+
+#### Portas em Modo Debug:
+- **Frontend**: http://localhost:9001
+- **Backend API**: http://localhost:9000
+- **MongoDB Admin**: http://localhost:8081 (admin/admin)
+- **Python Debugger**: Port 5678
+- **React DevTools**: Port 9009
+
+### Versão Console (Legacy)
+```bash
+# Execute o jogo console
 cd backend
 python main.py
 ```
-
-### Versão Web (Atual)
-```bash
-# Usando Docker (Recomendado)
-docker-compose up -d
-
-# Ou manualmente:
 # Backend
 cd backend
 python3 -m venv venv

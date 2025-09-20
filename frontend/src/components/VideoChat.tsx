@@ -192,4 +192,4 @@ const VideoChat: React.FC<VideoChatProps> = ({ isInGame = false, opponentId }) =
   );
 };
 
-export default VideoChat;
+export default VideoChat; 

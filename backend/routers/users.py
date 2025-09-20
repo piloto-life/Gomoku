@@ -59,3 +59,14 @@ async def get_online_users_count():
     # For now, return mock data
     # TODO: Implement real online user tracking with WebSocket
     return {"online_count": 5}
+
+@router.get("/me/games")
+async def get_my_games(current_user: User = Depends(get_current_user)):
+    """Get the authenticated user's game history."""
+    games_collection = await get_collection("games")
+    games = []
+    async for game_doc in games_collection.find({"$or": [{"players.black.id": current_user.id}, {"players.white.id": current_user.id}]}):
+        game_doc["id"] = str(game_doc["_id"])
+        del game_doc["_id"]
+        games.append(game_doc)
+    return games

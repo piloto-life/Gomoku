@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const Register: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
+    username: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -13,8 +14,17 @@ const Register: React.FC = () => {
     state: '',
     country: '',
   });
-  
-  const { register, isLoading, error } = useAuth();
+  const [formError, setFormError] = useState<string | null>(null);
+  const { register, isLoading, error: authError, clearError } = useAuth();
+
+  useEffect(() => {
+    // Clear any existing auth errors when the component mounts or unmounts
+    return () => {
+      if (authError) {
+        clearError();
+      }
+    };
+  }, [clearError, authError]);
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -28,13 +38,15 @@ const Register: React.FC = () => {
     e.preventDefault();
     
     if (formData.password !== formData.confirmPassword) {
-      alert('Senhas não coincidem!');
+      setFormError('As senhas não coincidem!');
       return;
     }
+    setFormError(null);
 
     try {
       await register({
         name: formData.name,
+        username: formData.username,
         email: formData.email,
         password: formData.password,
         age: formData.age ? parseInt(formData.age) : undefined,
@@ -55,9 +67,9 @@ const Register: React.FC = () => {
       <div className="auth-container">
         <h1>Criar Conta</h1>
         
-        {error && (
+        {(authError || formError) && (
           <div className="error-message">
-            {error}
+            {authError || formError}
           </div>
         )}
 
@@ -72,6 +84,19 @@ const Register: React.FC = () => {
               onChange={handleChange}
               required
               placeholder="Digite seu nome"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="username">Nome de Usuário:*</label>
+            <input
+              type="text"
+              id="username"
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
+              required
+              placeholder="Digite seu nome de usuário"
             />
           </div>
 

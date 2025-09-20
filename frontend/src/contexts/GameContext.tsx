@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useCallback } from 'react';
 import { GameState, Move, Position, Player, GameSettings } from '../types';
 import { gamesAPI } from '../services/api';
+import { useAuth } from './AuthContext';
 import { useGameWebSocket } from '../hooks/useGameWebSocket';
 
 interface GameContextType {
@@ -13,7 +14,7 @@ interface GameContextType {
   joinGame: (gameId: string) => void;
   loadGame: (gameId: string) => void;
   createGame: (gameMode: 'pvp-local' | 'pvp-online' | 'pve', difficulty?: 'easy' | 'medium' | 'hard') => Promise<void>;
-  leaveGame: () => void;
+  leaveGame: () => Promise<void>;
   updateSettings: (settings: Partial<GameSettings>) => void;
   setAiDifficulty: (difficulty: 'easy' | 'medium' | 'hard') => void;
 }
@@ -91,6 +92,7 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(gameReducer, initialState);
+  const { user } = useAuth();
 
   // Mock players for development
   const mockPlayer1: Player = {
@@ -102,14 +104,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     gamesWon: 7,
   };
 
-  const mockPlayer2: Player = {
-    id: '2',
-    name: 'Player 2',
-    isOnline: true,
-    rating: 1100,
-    gamesPlayed: 8,
-    gamesWon: 5,
-  };
 
   const createEmptyBoard = (): (string | null)[][] => {
     return Array(19).fill(null).map(() => Array(19).fill(null));
@@ -337,10 +331,31 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('Joining game:', gameId);
   };
 
-  const loadGame = (gameId: string) => {
-    // TODO: Implement load game logic
-    console.log('Loading game:', gameId);
-  };
+  const loadGame = useCallback(async (gameId: string) => {
+    try {
+      const gameData = await gamesAPI.getGame(gameId);
+      // This mapping logic can be complex, ensure it matches your backend response
+      const loadedGameState: GameState = {
+        id: gameData.id,
+        board: gameData.board,
+        currentPlayer: gameData.current_player,
+        gameMode: gameData.mode,
+        players: {
+          black: gameData.players.black, // Assuming backend sends compatible player objects
+          white: gameData.players.white,
+        },
+        moves: gameData.moves || [],
+        status: gameData.status,
+        winner: gameData.winner,
+        createdAt: new Date(gameData.created_at),
+        updatedAt: new Date(gameData.updated_at),
+      };
+      dispatch({ type: 'SET_GAME_STATE', payload: loadedGameState });
+    } catch (error) {
+      console.error('Failed to load game:', error);
+      // Optionally, handle the error in the UI
+    }
+  }, []);
 
   const createGame = async (gameMode: 'pvp-local' | 'pvp-online' | 'pve', difficulty: 'easy' | 'medium' | 'hard' = 'medium') => {
     try {
@@ -355,7 +370,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           currentPlayer: 'black',
           gameMode: gameMode,
           players: {
-            black: mockPlayer1,
+            black: user ? { id: user.id, name: user.name, isOnline: true, rating: user.stats.rating, gamesPlayed: user.stats.gamesPlayed, gamesWon: user.stats.gamesWon } : mockPlayer1,
             white: gameMode === 'pve' ? {
               id: 'ai',
               name: `AI Bot (${difficulty})`,
@@ -363,7 +378,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
               rating: difficulty === 'easy' ? 800 : difficulty === 'medium' ? 1200 : 1600,
               gamesPlayed: 100,
               gamesWon: 60,
-            } : mockPlayer2
+            } : {} as Player // The second player will join via WebSocket
           },
           moves: [],
           status: 'waiting',
@@ -471,7 +486,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('AI difficulty set to:', difficulty);
   };
 
-  const leaveGame = () => {
+  const leaveGame = async () => {
+    if (state.gameState && state.gameMode === 'pvp-online') {
+      try {
+        await gamesAPI.leaveGame(state.gameState.id);
+      } catch (error) {
+        console.error('Failed to notify backend of leaving game:', error);
+      }
+    }
     dispatch({ type: 'RESET_GAME' });
     dispatch({ type: 'SET_CONNECTION', payload: false });
   };

@@ -1,11 +1,21 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import logger from '../utils/logger';
 
 interface PlayerAvatarProps {
   size?: 'small' | 'medium' | 'large';
   showWebcam?: boolean;
   editable?: boolean;
 }
+
+// SVG de avatar padrão como string base64
+const DEFAULT_AVATAR_SVG = "data:image/svg+xml;base64," + btoa(`
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
+  <circle cx="50" cy="50" r="50" fill="#e0e0e0"/>
+  <circle cx="50" cy="40" r="15" fill="#999"/>
+  <circle cx="50" cy="75" r="25" fill="#999"/>
+</svg>
+`);
 
 const PlayerAvatar: React.FC<PlayerAvatarProps> = ({ 
   size = 'medium', 
@@ -14,7 +24,8 @@ const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
 }) => {
   const { user } = useAuth();
   const [isWebcamActive, setIsWebcamActive] = useState(false);
-  const [avatarSrc, setAvatarSrc] = useState(user?.email || ''); // Using email as placeholder
+  const [avatarSrc, setAvatarSrc] = useState(user?.avatar || '');
+  const [imageError, setImageError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -23,6 +34,42 @@ const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
     small: 'w-8 h-8',
     medium: 'w-16 h-16',
     large: 'w-24 h-24'
+  };
+
+  // Função para gerar avatar baseado no email usando serviço externo
+  const getGravatarUrl = (email: string, size: number = 80) => {
+    // Simples hash do email para gerar um identificador
+    const hash = btoa(email.toLowerCase().trim()).replace(/[^a-zA-Z0-9]/g, '').substring(0, 32);
+    return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=identicon&r=pg`;
+  };
+
+  // Função para obter a URL do avatar
+  const getAvatarUrl = () => {
+    if (imageError) {
+      return DEFAULT_AVATAR_SVG;
+    }
+    
+    if (avatarSrc) {
+      return avatarSrc;
+    }
+    
+    if (user?.avatar) {
+      return user.avatar;
+    }
+    
+    if (user?.email) {
+      return getGravatarUrl(user.email);
+    }
+    
+    return DEFAULT_AVATAR_SVG;
+  };
+
+  const handleImageError = () => {
+    logger.warn('AVATAR', 'Failed to load avatar image', { 
+      originalSrc: avatarSrc || user?.avatar,
+      userId: user?.id 
+    });
+    setImageError(true);
   };
 
   const startWebcam = async () => {
@@ -104,14 +151,19 @@ const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
             className="webcam-feed"
           />
         ) : (
-          <img
-            src={avatarSrc || '/default-avatar.png'}
-            alt={user?.email || 'Player'}
-            className="avatar-image"
-            onError={(e) => {
-              e.currentTarget.src = '/default-avatar.png';
-            }}
-          />
+          imageError ? (
+            <div 
+              dangerouslySetInnerHTML={{ __html: DEFAULT_AVATAR_SVG }}
+              className="w-full h-full flex items-center justify-center"
+            />
+          ) : (
+            <img
+              src={getAvatarUrl()}
+              alt={user?.email || 'Player'}
+              className="avatar-image"
+              onError={handleImageError}
+            />
+          )
         )}
         
         {editable && (

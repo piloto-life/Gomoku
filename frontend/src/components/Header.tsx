@@ -36,7 +36,7 @@ const Header: React.FC = () => {
         {isAuthenticated && (
           <>
             <Link to="/lobby">Lobby</Link>
-            <Link to="/game">Jogar</Link>
+            <Link to="/lobby">Jogar</Link>
             <Link to="/profile">Perfil</Link>
           </>
         )}

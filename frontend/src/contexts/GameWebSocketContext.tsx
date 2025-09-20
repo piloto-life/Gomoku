@@ -1,14 +1,36 @@
-import React, { useEffect, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useGameWebSocket } from '../hooks/useGameWebSocket';
 import { GameState, Move, Position } from '../types';
 
-interface GameWebSocketWrapperProps {
+export interface GameContextType {
+  gameState: GameState | null;
+  moves: Move[];
+  chatMessages: any[];
+  isConnected: boolean;
+  error: string | null;
+  makeMove: (position: Position) => boolean;
+  sendChatMessage: (message: string) => boolean;
+}
+
+export const GameWebSocketContext = createContext<GameContextType | undefined>(
+  undefined
+);
+
+export const useGame = () => {
+  const context = useContext(GameWebSocketContext);
+  if (context === undefined) {
+    throw new Error('useGame must be used within a GameWebSocketProvider');
+  }
+  return context;
+};
+
+interface GameWebSocketProviderProps {
   gameId: string;
   children: React.ReactNode;
   onGameUpdate?: (gameState: GameState) => void;
 }
 
-export const GameWebSocketWrapper: React.FC<GameWebSocketWrapperProps> = ({
+export const GameWebSocketProvider: React.FC<GameWebSocketProviderProps> = ({
   gameId,
   children,
   onGameUpdate
@@ -26,27 +48,20 @@ export const GameWebSocketWrapper: React.FC<GameWebSocketWrapperProps> = ({
   } = useGameWebSocket({
     gameId,
     onMove: (move) => {
-      console.log('Received move via WebSocket:', move);
-      
-      // Create a Move object from the WebSocket move data
       const newMove: Move = {
         id: Date.now().toString(),
         position: { row: move.row, col: move.col },
-        playerId: move.player === 'black' ? 'player1' : 'player2', // This would come from game state
+        playerId: move.player === 'black' ? 'player1' : 'player2',
         timestamp: new Date(),
         piece: move.player
       };
-      
       setMoves(prev => [...prev, newMove]);
-      
-      // Update local game state if you have one
       if (gameState) {
         const newBoard = gameState.board.map((row, rowIndex) =>
           row.map((cell, colIndex) =>
             rowIndex === move.row && colIndex === move.col ? move.player : cell
           )
         );
-        
         const updatedGameState: GameState = {
           ...gameState,
           board: newBoard,
@@ -54,18 +69,13 @@ export const GameWebSocketWrapper: React.FC<GameWebSocketWrapperProps> = ({
           moves: [...gameState.moves, newMove],
           updatedAt: new Date()
         };
-        
         setGameState(updatedGameState);
-        
         if (onGameUpdate) {
           onGameUpdate(updatedGameState);
         }
       }
     },
     onGameState: (state) => {
-      console.log('Received game state via WebSocket:', state);
-      
-      // Transform backend game state to frontend format
       const transformedState: GameState = {
         id: state.id,
         board: state.board,
@@ -108,23 +118,32 @@ export const GameWebSocketWrapper: React.FC<GameWebSocketWrapperProps> = ({
         createdAt: new Date(state.created_at || Date.now()),
         updatedAt: new Date(state.updated_at || Date.now())
       };
-      
       setGameState(transformedState);
-      
       if (onGameUpdate) {
         onGameUpdate(transformedState);
       }
     },
     onPlayerDisconnect: (playerId) => {
-      console.log('Player disconnected:', playerId);
       setError(`Player ${playerId} disconnected`);
     },
     onChatMessage: (message) => {
-      console.log('Received chat message:', message);
       setChatMessages(prev => [...prev, message]);
     },
+    onGameEnd: (data) => {
+      if (gameState) {
+        const updatedGameState = {
+          ...gameState,
+          status: 'finished' as const,
+          winner: data.winner,
+        };
+        setGameState(updatedGameState);
+        if (onGameUpdate) {
+          onGameUpdate(updatedGameState);
+        }
+      }
+      setError(`Game Over! ${data.message}`);
+    },
     onError: (errorMessage) => {
-      console.error('WebSocket error:', errorMessage);
       setError(errorMessage);
     }
   });
@@ -134,7 +153,6 @@ export const GameWebSocketWrapper: React.FC<GameWebSocketWrapperProps> = ({
       setError('Not connected to game server');
       return false;
     }
-    
     return sendMove(position.row, position.col);
   };
 
@@ -142,11 +160,9 @@ export const GameWebSocketWrapper: React.FC<GameWebSocketWrapperProps> = ({
     if (!isConnected) {
       return false;
     }
-    
     return sendChatMessage(message);
   };
 
-  // Show connection status
   useEffect(() => {
     if (connectionError) {
       setError(connectionError);
@@ -155,8 +171,7 @@ export const GameWebSocketWrapper: React.FC<GameWebSocketWrapperProps> = ({
     }
   }, [isConnected, connectionError]);
 
-  // Provide game context to children
-  const gameContextValue = {
+  const gameContextValue: GameContextType = {
     gameState,
     moves,
     chatMessages,
@@ -167,38 +182,8 @@ export const GameWebSocketWrapper: React.FC<GameWebSocketWrapperProps> = ({
   };
 
   return (
-    <div className="game-websocket-wrapper">
-      {error && (
-        <div className="error-banner" style={{
-          backgroundColor: '#fee',
-          border: '1px solid #fcc',
-          padding: '8px 12px',
-          borderRadius: '4px',
-          marginBottom: '16px',
-          color: '#c33'
-        }}>
-          Error: {error}
-        </div>
-      )}
-      
-      <div className="connection-status" style={{
-        padding: '4px 8px',
-        borderRadius: '4px',
-        marginBottom: '8px',
-        fontSize: '12px',
-        backgroundColor: isConnected ? '#efe' : '#ffe',
-        border: `1px solid ${isConnected ? '#cfc' : '#ffc'}`,
-        color: isConnected ? '#363' : '#663'
-      }}>
-        Status: {isConnected ? 'Connected' : 'Disconnected'}
-      </div>
-      
-      {/* Pass context to children */}
-      {React.Children.map(children, child =>
-        React.isValidElement(child)
-          ? React.cloneElement(child, { gameContext: gameContextValue } as any)
-          : child
-      )}
-    </div>
+    <GameWebSocketContext.Provider value={gameContextValue}>
+      {children}
+    </GameWebSocketContext.Provider>
   );
 };

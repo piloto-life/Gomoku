@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { User, LoginCredentials, RegisterData, AuthResponse } from '../types';
 import { authAPI } from '../services/api';
+import logger from '../utils/logger';
 
 interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isInitializing: boolean;
   error: string | null;
 }
 
@@ -15,28 +17,37 @@ interface AuthContextType extends AuthState {
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   clearError: () => void;
+  updateUser: (user: User) => void;
 }
 
 type AuthAction =
   | { type: 'AUTH_START' }
   | { type: 'AUTH_SUCCESS'; payload: AuthResponse }
+  | { type: 'AUTH_FINISH_INIT' }
   | { type: 'AUTH_ERROR'; payload: string }
   | { type: 'LOGOUT' }
-  | { type: 'CLEAR_ERROR' };
+  | { type: 'CLEAR_ERROR' }
+  | { type: 'UPDATE_USER'; payload: User };
 
 const initialState: AuthState = {
   user: null,
   token: localStorage.getItem('token'),
   isAuthenticated: false,
-  isLoading: false,
+  isLoading: true, // Start as true to indicate initial loading
+  isInitializing: true,
   error: null,
 };
 
 const authReducer = (state: AuthState, action: AuthAction): AuthState => {
   switch (action.type) {
     case 'AUTH_START':
+      logger.debug('AUTH_CONTEXT', 'Auth operation started');
       return { ...state, isLoading: true, error: null };
+    case 'AUTH_FINISH_INIT':
+      logger.debug('AUTH_CONTEXT', 'Auth initialization finished');
+      return { ...state, isInitializing: false, isLoading: false };
     case 'AUTH_SUCCESS':
+      logger.info('AUTH_CONTEXT', 'Authentication successful', { userId: action.payload.user.id });
       return {
         ...state,
         user: action.payload.user,
@@ -46,6 +57,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         error: null,
       };
     case 'AUTH_ERROR':
+      logger.error('AUTH_CONTEXT', 'Authentication error', { error: action.payload });
       return {
         ...state,
         user: null,
@@ -55,6 +67,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         error: action.payload,
       };
     case 'LOGOUT':
+      logger.info('AUTH_CONTEXT', 'User logged out');
       return {
         ...state,
         user: null,
@@ -63,7 +76,11 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         error: null,
       };
     case 'CLEAR_ERROR':
+      logger.debug('AUTH_CONTEXT', 'Auth error cleared');
       return { ...state, error: null };
+    case 'UPDATE_USER':
+      logger.info('AUTH_CONTEXT', 'User data updated', { userId: action.payload.id });
+      return { ...state, user: action.payload };
     default:
       return state;
   }
@@ -76,27 +93,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const token = localStorage.getItem('token');
+    logger.info('AUTH_CONTEXT', 'AuthProvider initializing', { hasToken: !!token });
+    
     if (token) {
-      // Validate token and get user info
-      authAPI.validateToken().then((isValid) => {
-        if (isValid) {
-          authAPI.getCurrentUser().then((user) => {
-            dispatch({
-              type: 'AUTH_SUCCESS',
-              payload: { user, token, refreshToken: '' }
-            });
-          }).catch(() => {
-            localStorage.removeItem('token');
-            dispatch({ type: 'LOGOUT' });
+      // On startup, if a token exists, validate it by fetching the user
+      logger.debug('AUTH_CONTEXT', 'Validating existing token');
+      dispatch({ type: 'AUTH_START' });
+      authAPI.getCurrentUser()
+        .then((user) => {
+          logger.info('AUTH_CONTEXT', 'Token validation successful', { userId: user.id });
+          dispatch({
+            type: 'AUTH_SUCCESS',
+            payload: { user, token, refreshToken: '' },
           });
-        } else {
+        })
+        .catch((error) => {
+          logger.warn('AUTH_CONTEXT', 'Token validation failed, removing token', { error });
           localStorage.removeItem('token');
           dispatch({ type: 'LOGOUT' });
-        }
-      }).catch(() => {
-        localStorage.removeItem('token');
-        dispatch({ type: 'LOGOUT' });
-      });
+        })
+        .finally(() => {
+          dispatch({ type: 'AUTH_FINISH_INIT' });
+        });
+    } else {
+      dispatch({ type: 'AUTH_FINISH_INIT' });
     }
   }, []);
 
@@ -135,6 +155,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: 'CLEAR_ERROR' });
   };
 
+  const updateUser = (user: User) => {
+    dispatch({ type: 'UPDATE_USER', payload: user });
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -143,6 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         register,
         logout,
         clearError,
+        updateUser,
       }}
     >
       {children}

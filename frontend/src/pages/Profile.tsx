@@ -1,9 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { usePageLogger } from '../hooks/useNavigationLogger';
+import { usersAPI } from '../services/api';
+import { User, GameState } from '../types';
+import logger from '../utils/logger';
 
 const Profile: React.FC = () => {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
+  
+  // Log page visit
+  usePageLogger('Profile');
+
   const [isEditing, setIsEditing] = useState(false);
+  const [gameHistory, setGameHistory] = useState<GameState[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [formData, setFormData] = useState({
     name: user?.name || '',
     age: user?.age?.toString() || '',
@@ -12,20 +22,77 @@ const Profile: React.FC = () => {
     country: user?.location?.country || '',
   });
 
+  useEffect(() => {
+    const fetchGameHistory = async () => {
+      setIsLoading(true);
+      logger.info('PROFILE', 'Fetching game history');
+      
+      try {
+        const history = await usersAPI.getGameHistory();
+        setGameHistory(history);
+        logger.info('PROFILE', 'Game history fetched successfully', { count: history.length });
+      } catch (error) {
+        logger.error('PROFILE', 'Failed to fetch game history', { error });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchGameHistory();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name || '',
+        age: user.age?.toString() || '',
+        city: user.location?.city || '',
+        state: user.location?.state || '',
+        country: user.location?.country || '',
+      });
+    }
+  }, [user]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+    logger.debug('PROFILE', 'Form field changed', { field: name });
   };
 
-  const handleSave = () => {
-    // TODO: Implement profile update API call
-    console.log('Saving profile:', formData);
-    setIsEditing(false);
+  const handleSave = async () => {
+    if (!user) return;
+
+    logger.userAction('SAVE_PROFILE_CLICKED', 'Profile');
+    
+    const updatedUserData: Partial<User> = {
+      name: formData.name,
+      age: formData.age ? parseInt(formData.age, 10) : undefined,
+      location: {
+        city: formData.city,
+        state: formData.state,
+        country: formData.country,
+      },
+    };
+
+    try {
+      logger.info('PROFILE', 'Updating user profile');
+      const updatedUser = await usersAPI.updateProfile(updatedUserData);
+      updateUser(updatedUser);
+      setIsEditing(false);
+      logger.info('PROFILE', 'Profile updated successfully', { userId: user.id });
+    } catch (error) {
+      logger.error('PROFILE', 'Failed to update profile', { error });
+      // Optionally, show an error message to the user
+    }
   };
 
   const handleCancel = () => {
+    logger.userAction('CANCEL_PROFILE_EDIT', 'Profile');
     setFormData({
       name: user?.name || '',
       age: user?.age?.toString() || '',
@@ -34,6 +101,11 @@ const Profile: React.FC = () => {
       country: user?.location?.country || '',
     });
     setIsEditing(false);
+  };
+
+  const handleEdit = () => {
+    logger.userAction('EDIT_PROFILE_CLICKED', 'Profile');
+    setIsEditing(true);
   };
 
   if (!user) {
@@ -159,7 +231,12 @@ const Profile: React.FC = () => {
               <p>Derrotas</p>
             </div>
             <div className="stat-card">
-              <h3>{user.stats.winRate}%</h3>
+              <h3>
+                {user.stats.gamesPlayed > 0
+                  ? Math.round((user.stats.gamesWon / user.stats.gamesPlayed) * 100)
+                  : 0}
+                %
+              </h3>
               <p>Taxa de Vitória</p>
             </div>
             <div className="stat-card">
@@ -172,8 +249,20 @@ const Profile: React.FC = () => {
         <div className="profile-section">
           <h2>Histórico de Partidas</h2>
           <div className="match-history">
-            <p>Implementação do histórico de partidas em desenvolvimento...</p>
-            {/* TODO: Implement match history */}
+            {gameHistory.length === 0 ? (
+              <p>Nenhuma partida encontrada.</p>
+            ) : (
+              <ul>
+                {gameHistory.map((game) => (
+                  <li key={game.id}>
+                    <span>
+                      {game.players.black.name} vs {game.players.white.name} - {game.status}
+                    </span>
+                    <span>{new Date(game.createdAt).toLocaleDateString()}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       </div>

@@ -3,9 +3,12 @@ from typing import List, Dict, Optional
 import json
 from datetime import datetime
 from bson import ObjectId
+import copy
+
 
 from database import get_collection
 from models.user import UserPublic
+from logic.game_logic import check_win
 
 router = APIRouter()
 
@@ -17,6 +20,60 @@ class GameConnectionManager:
         self.user_connections: Dict[str, WebSocket] = {}
         # Active connections
         self.active_connections: List[WebSocket] = []
+        # Online players (user_id -> UserPublic)
+        self.online_players: Dict[str, dict] = {}
+        # Waiting queue (list of user_id)
+        self.waiting_queue: List[str] = []
+
+    async def connect_to_lobby(self, websocket: WebSocket, user_id: str, user_public: dict):
+        """Connect a user to the lobby."""
+        self.active_connections.append(websocket)
+        self.user_connections[user_id] = websocket
+        self.online_players[user_id] = user_public
+
+    def disconnect_from_lobby(self, user_id: str):
+        """Disconnect a user from the lobby."""
+        if user_id in self.user_connections:
+            websocket = self.user_connections[user_id]
+            if websocket in self.active_connections:
+                self.active_connections.remove(websocket)
+            del self.user_connections[user_id]
+        if user_id in self.online_players:
+            del self.online_players[user_id]
+        if user_id in self.waiting_queue:
+            self.waiting_queue.remove(user_id)
+    async def broadcast_online_players(self):
+        """Broadcast the full list of online players to all lobby clients."""
+        players = []
+        for player in self.online_players.values():
+            player_copy = copy.deepcopy(player)
+            # Se for dict, converter campos datetime
+            if isinstance(player_copy, dict):
+                for k, v in player_copy.items():
+                    if isinstance(v, datetime):
+                        player_copy[k] = v.isoformat()
+            players.append(player_copy)
+        await self.broadcast_to_lobby({"type": "online_players", "players": players})
+
+    async def broadcast_queue_update(self):
+        """Broadcast the current waiting queue to all lobby clients."""
+        queue = [self.online_players[uid] for uid in self.waiting_queue if uid in self.online_players]
+        await self.broadcast_to_lobby({"type": "queue_update", "queue": queue})
+
+    async def broadcast_to_lobby(self, message: Dict, exclude_user: Optional[str] = None):
+        """Broadcast a message to all users in the lobby."""
+        message_str = json.dumps(message)
+        disconnected_users = []
+        for user_id, connection in self.user_connections.items():
+            if user_id == exclude_user:
+                continue
+            try:
+                await connection.send_text(message_str)
+            except Exception:
+                disconnected_users.append(user_id)
+        
+        for user_id in disconnected_users:
+            self.disconnect_from_lobby(user_id)
 
     async def connect_to_game(self, websocket: WebSocket, game_id: str, user_id: str):
         """Connect a user to a specific game room"""
@@ -31,6 +88,8 @@ class GameConnectionManager:
         # Add to game room
         if game_id not in self.game_rooms:
             self.game_rooms[game_id] = []
+        import copy
+        from datetime import datetime
         self.game_rooms[game_id].append(websocket)
 
     def disconnect_from_game(self, websocket: WebSocket, game_id: str, user_id: str):
@@ -154,6 +213,89 @@ async def get_user_from_token(token: str) -> Optional[UserPublic]:
         print(f"WebSocket auth error: {e}")
         return None
 
+@router.websocket("/test")
+async def websocket_test_endpoint(websocket: WebSocket):
+    """Simple WebSocket test endpoint without authentication"""
+    print("TEST: WebSocket connection attempt")
+    await websocket.accept()
+    print("TEST: WebSocket connection accepted")
+    
+    try:
+        await websocket.send_text("Hello from test endpoint!")
+        while True:
+            data = await websocket.receive_text()
+            await websocket.send_text(f"Echo: {data}")
+    except WebSocketDisconnect:
+        print("TEST: WebSocket disconnected")
+
+@router.websocket("/lobby")
+async def websocket_lobby_token_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for lobby using JWT token authentication"""
+    
+    print("Lobby WebSocket connection attempt")
+    
+    # Extract token from query string
+    query_string = websocket.url.query
+    print(f"Query string: {query_string}")
+    
+    token = None
+    if query_string:
+        # Parse query string manually
+        for param in query_string.split('&'):
+            if param.startswith('token='):
+                token = param.split('=', 1)[1]
+                break
+    
+    print(f"Token extracted: {token[:50] if token else 'None'}...")
+    
+    # Authenticate user
+    if not token:
+        print("No token provided, closing connection")
+        await websocket.close(code=1008, reason="Authentication token required")
+        return
+    
+    user = await get_user_from_token(token)
+    if not user:
+        print("Invalid token, closing connection")
+        await websocket.close(code=1008, reason="Invalid authentication token")
+        return
+    
+    print(f"User authenticated: {user.username} ({user.id})")
+    
+    # Accept connection after authentication
+    await websocket.accept()
+    print("WebSocket connection accepted!")
+
+    # Connect to lobby (pass UserPublic dict)
+    await game_manager.connect_to_lobby(websocket, user.id, user.dict())
+    # Broadcast player_joined and full snapshots
+    await game_manager.broadcast_to_lobby({"type": "player_joined", "user_id": user.id})
+    await game_manager.broadcast_online_players()
+    await game_manager.broadcast_queue_update()
+
+    try:
+        while True:
+            await websocket.receive_text()
+            # Aqui pode-se tratar join_queue, leave_queue, etc.
+    except WebSocketDisconnect:
+        print(f"User {user.username} disconnected from lobby")
+        game_manager.disconnect_from_lobby(user.id)
+        await game_manager.broadcast_to_lobby({"type": "player_left", "user_id": user.id})
+        await game_manager.broadcast_online_players()
+        await game_manager.broadcast_queue_update()
+
+# @router.websocket("/ws/lobby/{user_id}")
+# async def websocket_lobby_endpoint(websocket: WebSocket, user_id: str):
+#     await game_manager.connect_to_lobby(websocket, user_id)
+#     await game_manager.broadcast_to_lobby({"type": "player_joined", "user_id": user_id})
+#     try:
+#         while True:
+#             data = await websocket.receive_text()
+#             # Lobby WebSocket can be extended to handle chat, etc.
+#     except WebSocketDisconnect:
+#         game_manager.disconnect_from_lobby(user_id)
+#         await game_manager.broadcast_to_lobby({"type": "player_left", "user_id": user_id})
+
 @router.websocket("/ws/game/{game_id}")
 async def websocket_game_endpoint(
     websocket: WebSocket, 
@@ -199,7 +341,7 @@ async def websocket_game_endpoint(
         await websocket.close(code=1008, reason="User not authorized for this game")
         return
     
-    print(f"User authorized for game, connecting...")
+    print("User authorized for game, connecting...")
     
     # Connect to game
     await game_manager.connect_to_game(websocket, game_id, user.id)
@@ -303,12 +445,25 @@ async def websocket_game_endpoint(
                     }
                     await game_manager.send_game_move(game_id, move_data, user.id)
                     
-                    # TODO: Check for win condition here
-                    # For now, just broadcast the new state
-                    updated_game = await games_collection.find_one({"_id": ObjectId(game_id)})
-                    updated_game["id"] = str(updated_game["_id"])
-                    del updated_game["_id"]
-                    await game_manager.send_game_state(game_id, updated_game)
+                    # Check for win condition
+                    if check_win(board, (row, col)):
+                        await games_collection.update_one(
+                            {"_id": ObjectId(game_id)},
+                            {"$set": {"status": "finished", "winner": player_color}}
+                        )
+                        win_data = {
+                            "winner": player_color,
+                            "winning_player_id": user.id,
+                            "message": f"{user.username} wins!"
+                        }
+                        await game_manager.send_game_event(game_id, "game_end", win_data)
+                    else:
+                        # For now, just broadcast the new state
+                        updated_game = await games_collection.find_one({"_id": ObjectId(game_id)})
+                        if updated_game:
+                            updated_game["id"] = str(updated_game["_id"])
+                            del updated_game["_id"]
+                            await game_manager.send_game_state(game_id, updated_game)
                     
                 else:
                     await websocket.send_text(json.dumps({

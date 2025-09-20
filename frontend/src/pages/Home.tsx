@@ -1,9 +1,41 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { usePageLogger } from '../hooks/useNavigationLogger';
+import { gamesAPI } from '../services/api';
+import logger from '../utils/logger';
 
 const Home: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
+  
+  // Log page visit
+  usePageLogger('Home');
+
+  // Log user status on home page
+  React.useEffect(() => {
+    logger.info('HOME', 'User visited home page', {
+      isAuthenticated,
+      userId: user?.id,
+      userName: user?.name,
+    });
+  }, [isAuthenticated, user?.id, user?.name]);
+
+  const handleQuickPlayClick = async () => {
+    logger.userAction('QUICK_PLAY_CLICKED', 'Home');
+    try {
+      // Create a quick PvE game
+      const gameResponse = await gamesAPI.createGame('pve', 'medium');
+      logger.info('HOME', 'Quick play game created', { gameId: gameResponse.id });
+      // Navigate to the created game
+      window.location.href = `/game/${gameResponse.id}`;
+    } catch (error) {
+      logger.error('HOME', 'Failed to create quick play game', { error });
+    }
+  };
+
+  const handleJoinLobbyClick = () => {
+    logger.userAction('JOIN_LOBBY_CLICKED', 'Home');
+  };
 
   return (
     <div className="home">
@@ -24,7 +56,7 @@ const Home: React.FC = () => {
                 <p>Vitórias</p>
               </div>
               <div className="stat">
-                <h3>{user?.stats.winRate}%</h3>
+                <h3>{Math.round(((user?.stats.gamesWon || 0) / Math.max(user?.stats.gamesPlayed || 1, 1)) * 100)}%</h3>
                 <p>Taxa de Vitória</p>
               </div>
               <div className="stat">
@@ -33,12 +65,12 @@ const Home: React.FC = () => {
               </div>
             </div>
             <div className="action-buttons">
-              <Link to="/lobby" className="btn btn-primary">
+              <Link to="/lobby" className="btn btn-primary" onClick={handleJoinLobbyClick}>
                 Entrar no Lobby
               </Link>
-              <Link to="/game" className="btn btn-secondary">
+              <button className="btn btn-secondary" onClick={handleQuickPlayClick}>
                 Jogo Rápido
-              </Link>
+              </button>
             </div>
           </div>
         ) : (

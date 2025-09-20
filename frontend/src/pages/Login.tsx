@@ -1,21 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { usePageLogger } from '../hooks/useNavigationLogger';
+import logger from '../utils/logger';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login, isLoading, error } = useAuth();
+  const { login, isLoading, error, clearError } = useAuth();
   const navigate = useNavigate();
+  
+  // Log page visit
+  usePageLogger('Login');
+
+  useEffect(() => {
+    logger.info('LOGIN_PAGE', 'User accessed login page');
+    
+    // Clear any existing auth errors when the component mounts or unmounts
+    return () => {
+      if (error) {
+        clearError();
+      }
+    };
+  }, [clearError, error]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    logger.userAction('LOGIN_ATTEMPT', 'Login', { email });
+    
     try {
       await login({ email, password });
+      logger.info('LOGIN_PAGE', 'Login successful, redirecting to lobby', { email });
       navigate('/lobby');
     } catch (err) {
+      logger.error('LOGIN_PAGE', 'Login failed', { email, error: err });
       // Error is handled by AuthContext
     }
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+    logger.debug('LOGIN_PAGE', 'Email field changed');
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+    logger.debug('LOGIN_PAGE', 'Password field changed');
   };
 
   return (
@@ -36,7 +66,7 @@ const Login: React.FC = () => {
               type="email"
               id="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={handleEmailChange}
               required
               placeholder="Digite seu email"
             />
@@ -48,7 +78,7 @@ const Login: React.FC = () => {
               type="password"
               id="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={handlePasswordChange}
               required
               placeholder="Digite sua senha"
             />

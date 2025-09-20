@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import logger from '../utils/logger';
 
 interface WebSocketMessage {
   type: string;
@@ -19,6 +20,7 @@ interface UseGameWebSocketProps {
   onGameState?: (state: any) => void;
   onPlayerDisconnect?: (playerId: string) => void;
   onChatMessage?: (message: any) => void;
+  onGameEnd?: (data: any) => void;
   onError?: (error: string) => void;
 }
 
@@ -28,6 +30,7 @@ export const useGameWebSocket = ({
   onGameState,
   onPlayerDisconnect,
   onChatMessage,
+  onGameEnd,
   onError
 }: UseGameWebSocketProps) => {
   const { token } = useAuth();
@@ -37,17 +40,22 @@ export const useGameWebSocket = ({
 
   const connect = useCallback(() => {
     if (!token || !gameId) {
-      setConnectionError('Missing authentication token or game ID');
+      const errorMsg = 'Missing authentication token or game ID';
+      setConnectionError(errorMsg);
+      logger.error('WEBSOCKET', errorMsg, { gameId, hasToken: !!token });
       return;
     }
 
     try {
       // Create WebSocket connection with authentication
-      const wsUrl = `ws://localhost:8000/ws/game/${gameId}?token=${encodeURIComponent(token)}`;
+      const wsBaseUrl = process.env.REACT_APP_WS_URL || 'ws://localhost:8000';
+      const wsUrl = `${wsBaseUrl}/ws/game/${gameId}?token=${encodeURIComponent(token)}`;
+      
+      logger.websocketConnect(wsUrl);
       ws.current = new WebSocket(wsUrl);
 
       ws.current.onopen = () => {
-        console.log(`Connected to game ${gameId} WebSocket`);
+        logger.info('WEBSOCKET', `Connected to game ${gameId} WebSocket`, { gameId, wsUrl });
         setIsConnected(true);
         setConnectionError(null);
       };
@@ -56,64 +64,81 @@ export const useGameWebSocket = ({
         try {
           const message: WebSocketMessage = JSON.parse(event.data);
           
+          // Log received message
+          logger.websocketMessage('RECEIVE', message.type, message);
+          
           switch (message.type) {
             case 'connected':
-              console.log('WebSocket connection confirmed:', message.message);
+              logger.info('WEBSOCKET', 'WebSocket connection confirmed', { message: message.message, gameId });
               break;
               
             case 'game_state':
-              console.log('Received game state:', message.state);
+              logger.debug('WEBSOCKET', 'Received game state', { gameId, state: message.state });
               if (onGameState) {
                 onGameState(message.state);
               }
               break;
               
             case 'player_move':
-              console.log('Received player move:', message.move);
+              logger.info('WEBSOCKET', 'Received player move', { gameId, move: message.move });
               if (onMove) {
                 onMove(message.move);
               }
               break;
               
             case 'chat_message':
-              console.log('Received chat message:', message.data);
+              logger.debug('WEBSOCKET', 'Received chat message', { gameId, data: message.data });
               if (onChatMessage) {
                 onChatMessage(message.data);
               }
               break;
               
             case 'player_disconnected':
-              console.log('Player disconnected:', message.data);
+              logger.warn('WEBSOCKET', 'Player disconnected', { gameId, data: message.data });
               if (onPlayerDisconnect) {
                 onPlayerDisconnect(message.data.user_id);
               }
               break;
               
             case 'error':
-              console.error('WebSocket error:', message.message);
+              logger.error('WEBSOCKET', 'WebSocket error message', { gameId, message: message.message });
               if (onError) {
                 onError(message.message);
               }
               break;
               
+            case 'game_end':
+              logger.info('WEBSOCKET', 'Received game end event', { gameId, data: message.data });
+              if (onGameEnd) {
+                onGameEnd(message.data);
+              }
+              break;
+
             case 'pong':
               // Handle ping/pong for connection health
+              logger.debug('WEBSOCKET', 'Received pong', { gameId });
               break;
               
             default:
-              console.log('Unknown WebSocket message type:', message.type);
+              logger.warn('WEBSOCKET', 'Unknown WebSocket message type', { gameId, type: message.type });
           }
         } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
+          logger.error('WEBSOCKET', 'Error parsing WebSocket message', { gameId, error, rawData: event.data });
         }
       };
 
       ws.current.onclose = (event) => {
-        console.log(`Disconnected from game ${gameId} WebSocket:`, event.code, event.reason);
+        logger.warn('WEBSOCKET', `Disconnected from game ${gameId} WebSocket`, { 
+          gameId, 
+          code: event.code, 
+          reason: event.reason,
+          wasClean: event.wasClean 
+        });
         setIsConnected(false);
         
         // Try to reconnect after a delay if it wasn't a clean close
         if (event.code !== 1000) {
+          logger.info('WEBSOCKET', 'Attempting to reconnect in 3 seconds', { gameId });
           setTimeout(() => {
             if (ws.current?.readyState === WebSocket.CLOSED) {
               connect();
@@ -123,7 +148,7 @@ export const useGameWebSocket = ({
       };
 
       ws.current.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        logger.websocketError('WebSocket connection error', wsUrl);
         setConnectionError('WebSocket connection error');
         if (onError) {
           onError('Connection error');
@@ -131,18 +156,19 @@ export const useGameWebSocket = ({
       };
 
     } catch (error) {
-      console.error('Failed to create WebSocket connection:', error);
+      logger.error('WEBSOCKET', 'Failed to create WebSocket connection', { gameId, error });
       setConnectionError('Failed to create connection');
     }
-  }, [gameId, token, onMove, onGameState, onPlayerDisconnect, onChatMessage, onError]);
+  }, [gameId, token, onMove, onGameState, onPlayerDisconnect, onChatMessage, onGameEnd, onError]);
 
   const disconnect = useCallback(() => {
     if (ws.current) {
+      logger.info('WEBSOCKET', 'Manually disconnecting WebSocket', { gameId });
       ws.current.close(1000, 'User disconnect');
       ws.current = null;
       setIsConnected(false);
     }
-  }, []);
+  }, [gameId]);
 
   const sendMove = useCallback((row: number, col: number) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
@@ -151,11 +177,14 @@ export const useGameWebSocket = ({
         row,
         col
       };
+      logger.websocketMessage('SEND', 'move', { gameId, row, col });
       ws.current.send(JSON.stringify(message));
       return true;
+    } else {
+      logger.warn('WEBSOCKET', 'Cannot send move - WebSocket not connected', { gameId, row, col });
+      return false;
     }
-    return false;
-  }, []);
+  }, [gameId]);
 
   const sendChatMessage = useCallback((message: string) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
@@ -163,25 +192,31 @@ export const useGameWebSocket = ({
         type: 'chat',
         message
       };
+      logger.websocketMessage('SEND', 'chat', { gameId, message });
       ws.current.send(JSON.stringify(chatMessage));
       return true;
+    } else {
+      logger.warn('WEBSOCKET', 'Cannot send chat message - WebSocket not connected', { gameId, message });
+      return false;
     }
-    return false;
-  }, []);
+  }, [gameId]);
 
   const sendPing = useCallback(() => {
     if (ws.current?.readyState === WebSocket.OPEN) {
+      logger.debug('WEBSOCKET', 'Sending ping', { gameId });
       ws.current.send(JSON.stringify({ type: 'ping' }));
     }
-  }, []);
+  }, [gameId]);
 
   // Auto-connect when component mounts and dependencies change
   useEffect(() => {
     if (gameId && token) {
+      logger.debug('WEBSOCKET', 'Auto-connecting WebSocket', { gameId });
       connect();
     }
 
     return () => {
+      logger.debug('WEBSOCKET', 'Cleaning up WebSocket connection', { gameId });
       disconnect();
     };
   }, [gameId, token, connect, disconnect]);
@@ -189,17 +224,22 @@ export const useGameWebSocket = ({
   // Ping every 30 seconds to keep connection alive
   useEffect(() => {
     if (isConnected) {
+      logger.debug('WEBSOCKET', 'Setting up ping interval', { gameId });
       const pingInterval = setInterval(sendPing, 30000);
-      return () => clearInterval(pingInterval);
+      return () => {
+        logger.debug('WEBSOCKET', 'Clearing ping interval', { gameId });
+        clearInterval(pingInterval);
+      };
     }
-  }, [isConnected, sendPing]);
+  }, [isConnected, sendPing, gameId]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      logger.debug('WEBSOCKET', 'Component unmounting - disconnecting WebSocket', { gameId });
       disconnect();
     };
-  }, [disconnect]);
+  }, [disconnect, gameId]);
 
   return {
     isConnected,

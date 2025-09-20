@@ -1,38 +1,48 @@
 import React from 'react';
 import { GameState, Position } from '../types';
-import { useGame } from '../contexts/GameContext';
+import logger from '../utils/logger';
 
 interface GameBoardProps {
   gameState: GameState;
+  onMove: (position: Position) => void;
 }
 
-const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
-  const { makeMove } = useGame();
+const GameBoard: React.FC<GameBoardProps> = ({ gameState, onMove }) => {
+  React.useEffect(() => {
+    logger.componentMount('GameBoard', { gameId: gameState.id, status: gameState.status });
+    
+    return () => {
+      logger.componentUnmount('GameBoard');
+    };
+  }, [gameState.id, gameState.status]);
 
   const handleCellClick = (row: number, col: number) => {
-    if (gameState.status !== 'active') return;
-    
-    // Para modo local (2 jogadores), permitir qualquer jogada
-    if (gameState.gameMode === 'pvp-local') {
-      const position: Position = { row, col };
-      makeMove(position);
+    if (gameState.status !== 'active') {
+      logger.warn('GAME_BOARD', 'Attempted move on inactive game', { 
+        gameId: gameState.id, 
+        status: gameState.status, 
+        position: { row, col } 
+      });
       return;
     }
     
-    // Para modo PvE, não permitir jogadas quando é a vez da IA
-    if (gameState.gameMode === 'pve' && 
-        gameState.currentPlayer === 'white' && 
-        gameState.players.white.id === 'ai') {
+    const cellValue = gameState.board[row][col];
+    if (cellValue !== null) {
+      logger.warn('GAME_BOARD', 'Attempted move on occupied cell', { 
+        gameId: gameState.id, 
+        position: { row, col }, 
+        cellValue 
+      });
       return;
     }
     
-    // Para modo online, verificar se é a vez do jogador atual
-    if (gameState.gameMode === 'pvp-online') {
-      // TODO: Adicionar verificação de turno para jogador online
-    }
+    logger.userAction('CELL_CLICKED', 'GameBoard', { 
+      gameId: gameState.id, 
+      position: { row, col },
+      currentPlayer: gameState.currentPlayer 
+    });
     
-    const position: Position = { row, col };
-    makeMove(position);
+    onMove({ row, col });
   };
 
   const renderCell = (row: number, col: number) => {
@@ -75,7 +85,11 @@ const GameBoard: React.FC<GameBoardProps> = ({ gameState }) => {
         
         <div className="game-board">
           {gameState.board.map((row, rowIndex) =>
-            row.map((_, colIndex) => renderCell(rowIndex, colIndex))
+            row.map((_, colIndex) => (
+              <div key={`${rowIndex}-${colIndex}`} onClick={() => handleCellClick(rowIndex, colIndex)}>
+                {renderCell(rowIndex, colIndex)}
+              </div>
+            ))
           )}
         </div>
         
