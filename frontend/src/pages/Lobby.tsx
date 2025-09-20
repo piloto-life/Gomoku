@@ -98,8 +98,8 @@ const Lobby: React.FC = () => {
         return;
       }
 
-      const wsBaseUrl = process.env.REACT_APP_WS_URL || 'ws://localhost:8000';
-      const wsUrl = `${wsBaseUrl}/ws/lobby?token=${encodeURIComponent(token)}`;
+  const wsBaseUrl = process.env.REACT_APP_WS_URL || 'ws://localhost:8000';
+  const wsUrl = `${wsBaseUrl}/ws/lobby?token=${encodeURIComponent(token)}`;
       
       logger.websocketConnect(wsUrl);
       ws.current = new WebSocket(wsUrl);
@@ -454,10 +454,26 @@ const Lobby: React.FC = () => {
             ) : error ? (
               <p className="error-message">{error}</p>
             ) : (
-              <ul>
-                {onlinePlayers.map((player) => (
-                  <li key={player.id}>{player.name}</li>
-                ))}
+              <ul className="online-players-ul">
+                {onlinePlayers.length === 0 ? (
+                  <li className="empty-online-player">Nenhum jogador online</li>
+                ) : (
+                  onlinePlayers.map((player) => (
+                    <li key={player.id} className="online-player-item">
+                      {player.avatar ? (
+                        <img src={player.avatar} alt="Avatar" className="online-player-avatar" />
+                      ) : (
+                        <span className="online-player-avatar-placeholder">
+                          <i className="fas fa-user-circle"></i>
+                        </span>
+                      )}
+                      <span className="online-player-name">{player.name}</span>
+                      {typeof player.rating === 'number' && (
+                        <span className="online-player-rating">({player.rating})</span>
+                      )}
+                    </li>
+                  ))
+                )}
               </ul>
             )}
           </div>

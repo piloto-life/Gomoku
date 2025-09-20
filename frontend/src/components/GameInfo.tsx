@@ -1,6 +1,7 @@
 import React from 'react';
 import { GameState } from '../types';
 import { useGame } from '../contexts/GameContext';
+import PlayerAvatar from './PlayerAvatar';
 
 interface GameInfoProps {
   gameState: GameState;
@@ -63,6 +64,7 @@ const GameInfo: React.FC<GameInfoProps> = ({ gameState }) => {
         <div className="player-info">
           <div className={`player ${gameState.currentPlayer === 'black' ? 'active' : ''}`}>
             <div className="player-piece">⚫</div>
+            <PlayerAvatar size="small" />
             <div className="player-details">
               <div className="player-name">{gameState.players.black.name}</div>
               <div className="player-stats">
@@ -70,9 +72,9 @@ const GameInfo: React.FC<GameInfoProps> = ({ gameState }) => {
               </div>
             </div>
           </div>
-          
           <div className={`player ${gameState.currentPlayer === 'white' ? 'active' : ''}`}>
             <div className="player-piece">⚪</div>
+            <PlayerAvatar size="small" />
             <div className="player-details">
               <div className="player-name">{gameState.players.white.name}</div>
               <div className="player-stats">

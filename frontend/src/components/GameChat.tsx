@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { ChatMessage } from '../types';
+import { useGame } from '../contexts/GameContext';
+import PlayerAvatar from './PlayerAvatar';
 
 interface GameChatProps {
   gameId: string;
@@ -59,24 +61,39 @@ const GameChat: React.FC<GameChatProps> = ({ gameId }) => {
     });
   };
 
+  const { gameState } = useGame();
+
+  // Helper para buscar dados do jogador pelo userId
+  const getPlayerData = (userId: string) => {
+    if (!gameState) return undefined;
+    if (gameState.players.black.id === userId) return gameState.players.black;
+    if (gameState.players.white.id === userId) return gameState.players.white;
+    return undefined;
+  };
+
   return (
     <div className="game-chat">
       <h3>Chat da Partida</h3>
-      
       <div className="chat-messages">
-        {messages.map((msg) => (
-          <div key={msg.id} className={`chat-message ${msg.userId === 'current-user' ? 'own' : ''}`}>
-            <div className="message-header">
-              <span className="username">{msg.username}</span>
-              <span className="timestamp">{formatTime(msg.timestamp)}</span>
+        {messages.map((msg) => {
+          const player = getPlayerData(msg.userId);
+          return (
+            <div key={msg.id} className={`chat-message ${msg.userId === 'current-user' ? 'own' : ''}`}>
+              <div className="message-header">
+                {player && (
+                  <span className="avatar-inline"><PlayerAvatar size="small" /></span>
+                )}
+                <span className="username">{msg.username}</span>
+                {player && (
+                  <span className="player-rating">({player.rating})</span>
+                )}
+                <span className="timestamp">{formatTime(msg.timestamp)}</span>
+              </div>
+              <div className="message-content">{msg.message}</div>
             </div>
-            <div className="message-content">
-              {msg.message}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
-
       <div className="chat-input">
         <textarea
           value={message}
@@ -94,7 +111,6 @@ const GameChat: React.FC<GameChatProps> = ({ gameId }) => {
           Enviar
         </button>
       </div>
-
       <div className="chat-info">
         <small>Pressione Enter para enviar, Shift+Enter para nova linha</small>
       </div>

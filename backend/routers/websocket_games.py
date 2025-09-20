@@ -57,7 +57,16 @@ class GameConnectionManager:
 
     async def broadcast_queue_update(self):
         """Broadcast the current waiting queue to all lobby clients."""
-        queue = [self.online_players[uid] for uid in self.waiting_queue if uid in self.online_players]
+        queue = []
+        for uid in self.waiting_queue:
+            if uid in self.online_players:
+                player_copy = copy.deepcopy(self.online_players[uid])
+                # Converter campos datetime para string
+                if isinstance(player_copy, dict):
+                    for k, v in player_copy.items():
+                        if isinstance(v, datetime):
+                            player_copy[k] = v.isoformat()
+                queue.append(player_copy)
         await self.broadcast_to_lobby({"type": "queue_update", "queue": queue})
 
     async def broadcast_to_lobby(self, message: Dict, exclude_user: Optional[str] = None):
@@ -275,8 +284,57 @@ async def websocket_lobby_token_endpoint(websocket: WebSocket):
 
     try:
         while True:
-            await websocket.receive_text()
-            # Aqui pode-se tratar join_queue, leave_queue, etc.
+            data = await websocket.receive_text()
+            try:
+                message = json.loads(data)
+            except Exception:
+                continue
+            msg_type = message.get("type")
+            if msg_type == "join_queue":
+                # Add user to waiting queue if not already present
+                if user.id not in game_manager.waiting_queue:
+                    game_manager.waiting_queue.append(user.id)
+                    await game_manager.broadcast_queue_update()
+                # If enough players, start a match
+                if len(game_manager.waiting_queue) >= 2:
+                    p1_id = game_manager.waiting_queue.pop(0)
+                    p2_id = game_manager.waiting_queue.pop(0)
+                    p1 = game_manager.online_players.get(p1_id)
+                    p2 = game_manager.online_players.get(p2_id)
+                    if p1 and p2:
+                        # Criação real do jogo no banco
+                        games_collection = await get_collection("games")
+                        now = datetime.utcnow()
+                        game_doc = {
+                            "mode": "pvp-online",
+                            "status": "active",
+                            "board": [[None for _ in range(19)] for _ in range(19)],
+                            "current_player": "black",
+                            "players": {
+                                "black": {
+                                    "id": p1["id"],
+                                    "username": p1.get("username", p1.get("email", "")),
+                                    "email": p1.get("email", "")
+                                },
+                                "white": {
+                                    "id": p2["id"],
+                                    "username": p2.get("username", p2.get("email", "")),
+                                    "email": p2.get("email", "")
+                                }
+                            },
+                            "moves": [],
+                            "created_at": now,
+                            "updated_at": now
+                        }
+                        result = await games_collection.insert_one(game_doc)
+                        game_id = str(result.inserted_id)
+                        await game_manager.send_to_user(p1_id, {"type": "game_start", "game_id": game_id, "players": [p1, p2]})
+                        await game_manager.send_to_user(p2_id, {"type": "game_start", "game_id": game_id, "players": [p1, p2]})
+                        await game_manager.broadcast_queue_update()
+            elif msg_type == "leave_queue":
+                if user.id in game_manager.waiting_queue:
+                    game_manager.waiting_queue.remove(user.id)
+                    await game_manager.broadcast_queue_update()
     except WebSocketDisconnect:
         print(f"User {user.username} disconnected from lobby")
         game_manager.disconnect_from_lobby(user.id)
