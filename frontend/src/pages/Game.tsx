@@ -91,8 +91,7 @@ const LocalGameComponent: React.FC = () => {
 
   const handleLeaveGame = async () => {
     if (gameId) {
-      await leaveGame(gameId);
-      await updateUser();
+      await leaveGame();
       navigate('/lobby');
     }
   };
@@ -147,7 +146,7 @@ const LocalGameComponent: React.FC = () => {
         <GameEndModal 
           isOpen={showEndModal}
           message={endMessage}
-          winnerName={winnerName}
+          winner={winnerName}
           onPlayAgain={handlePlayAgain}
           onReturnToLobby={handleReturnToLobby}
         />
@@ -168,7 +167,6 @@ const LocalGameComponent: React.FC = () => {
         
         {gameState.gameMode === 'pvp-online' && (
           <div className="game-sidebar">
-            <GameChat />
           </div>
         )}
       </div>
