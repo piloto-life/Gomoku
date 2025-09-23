@@ -42,7 +42,7 @@ services:
       - mongodb
     networks:
       - gomoku_network
-    command: uvicorn app:app --host 0.0.0.0 --port 9000 --reload --log-level debug
+    command: uvicorn app:app --host 0.0.0.0 --port 9000 --reload --log-level debug --proxy-headers
 
   # Frontend React
   frontend:
@@ -55,8 +55,8 @@ services:
       - "9001:3000"
       - "9009:9009"  # Debug port for React DevTools
     environment:
-      - REACT_APP_API_URL=http://localhost:9000
-      - REACT_APP_WS_URL=ws://localhost:9000
+      - REACT_APP_API_URL=https://localhost
+      - REACT_APP_WS_URL=wss://localhost
       - NODE_ENV=development
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true
@@ -79,7 +79,7 @@ services:
     container_name: gomoku_nginx
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "8080:80"
       - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
@@ -89,8 +89,6 @@ services:
       - backend
     networks:
       - gomoku_network
-    profiles:
-      - production
 
   # Debug MongoDB Admin Interface
   mongo-express:
@@ -109,8 +107,6 @@ services:
       - mongodb
     networks:
       - gomoku_network
-    profiles:
-      - debug
 
 volumes:
   mongodb_data:
