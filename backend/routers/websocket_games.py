@@ -86,7 +86,7 @@ class GameConnectionManager:
 
     async def connect_to_game(self, websocket: WebSocket, game_id: str, user_id: str):
         """Connect a user to a specific game room"""
-        await websocket.accept()
+        # Connection already accepted in endpoint
         
         # Add to active connections
         self.active_connections.append(websocket)
@@ -243,6 +243,10 @@ async def websocket_lobby_token_endpoint(websocket: WebSocket):
     
     print("Lobby WebSocket connection attempt")
     
+    # First accept the connection
+    await websocket.accept()
+    print("Lobby WebSocket connection accepted!")
+    
     # Extract token from query string
     query_string = websocket.url.query
     print(f"Query string: {query_string}")
@@ -271,12 +275,26 @@ async def websocket_lobby_token_endpoint(websocket: WebSocket):
     
     print(f"User authenticated: {user.username} ({user.id})")
     
-    # Accept connection after authentication
-    await websocket.accept()
-    print("WebSocket connection accepted!")
+    # Check if user is already connected (prevent duplicate connections)
+    if user.id in game_manager.user_connections:
+        print(f"User {user.username} already connected, closing old connection")
+        try:
+            old_ws = game_manager.user_connections[user.id]
+            await old_ws.close(code=1000, reason="New connection established")
+        except:
+            pass  # Ignore errors from closing old connection
+        game_manager.disconnect_from_lobby(user.id)
 
     # Connect to lobby (pass UserPublic dict)
     await game_manager.connect_to_lobby(websocket, user.id, user.dict())
+    
+    # Send connection success message
+    await websocket.send_text(json.dumps({
+        "type": "connection_established",
+        "user_id": user.id,
+        "message": "Successfully connected to lobby"
+    }))
+    
     # Broadcast player_joined and full snapshots
     await game_manager.broadcast_to_lobby({"type": "player_joined", "user_id": user.id})
     await game_manager.broadcast_online_players()
@@ -287,60 +305,102 @@ async def websocket_lobby_token_endpoint(websocket: WebSocket):
             data = await websocket.receive_text()
             try:
                 message = json.loads(data)
-            except Exception:
+            except json.JSONDecodeError:
+                print(f"Invalid JSON received from {user.username}: {data}")
                 continue
+                
             msg_type = message.get("type")
+            print(f"Received message from {user.username}: {msg_type}")
+            
             if msg_type == "join_queue":
                 # Add user to waiting queue if not already present
                 if user.id not in game_manager.waiting_queue:
                     game_manager.waiting_queue.append(user.id)
+                    print(f"User {user.username} joined queue. Queue size: {len(game_manager.waiting_queue)}")
                     await game_manager.broadcast_queue_update()
-                # If enough players, start a match
-                if len(game_manager.waiting_queue) >= 2:
-                    p1_id = game_manager.waiting_queue.pop(0)
-                    p2_id = game_manager.waiting_queue.pop(0)
-                    p1 = game_manager.online_players.get(p1_id)
-                    p2 = game_manager.online_players.get(p2_id)
-                    if p1 and p2:
-                        # Criação real do jogo no banco
-                        games_collection = await get_collection("games")
-                        now = datetime.utcnow()
-                        game_doc = {
-                            "mode": "pvp-online",
-                            "status": "active",
-                            "board": [[None for _ in range(19)] for _ in range(19)],
-                            "current_player": "black",
-                            "players": {
-                                "black": {
-                                    "id": p1["id"],
-                                    "username": p1.get("username", p1.get("email", "")),
-                                    "email": p1.get("email", "")
+                    
+                    # If enough players, start a match
+                    if len(game_manager.waiting_queue) >= 2:
+                        p1_id = game_manager.waiting_queue.pop(0)
+                        p2_id = game_manager.waiting_queue.pop(0)
+                        p1 = game_manager.online_players.get(p1_id)
+                        p2 = game_manager.online_players.get(p2_id)
+                        
+                        if p1 and p2:
+                            print(f"Starting match between {p1.get('username', 'Unknown')} and {p2.get('username', 'Unknown')}")
+                            
+                            # Criação real do jogo no banco
+                            games_collection = await get_collection("games")
+                            now = datetime.utcnow()
+                            game_doc = {
+                                "mode": "pvp-online",
+                                "status": "active",
+                                "board": [[None for _ in range(19)] for _ in range(19)],
+                                "current_player": "black",
+                                "players": {
+                                    "black": {
+                                        "id": p1["id"],
+                                        "username": p1.get("username", p1.get("email", "")),
+                                        "email": p1.get("email", "")
+                                    },
+                                    "white": {
+                                        "id": p2["id"],
+                                        "username": p2.get("username", p2.get("email", "")),
+                                        "email": p2.get("email", "")
+                                    }
                                 },
-                                "white": {
-                                    "id": p2["id"],
-                                    "username": p2.get("username", p2.get("email", "")),
-                                    "email": p2.get("email", "")
-                                }
-                            },
-                            "moves": [],
-                            "created_at": now,
-                            "updated_at": now
-                        }
-                        result = await games_collection.insert_one(game_doc)
-                        game_id = str(result.inserted_id)
-                        await game_manager.send_to_user(p1_id, {"type": "game_start", "game_id": game_id, "players": [p1, p2]})
-                        await game_manager.send_to_user(p2_id, {"type": "game_start", "game_id": game_id, "players": [p1, p2]})
-                        await game_manager.broadcast_queue_update()
+                                "moves": [],
+                                "created_at": now,
+                                "updated_at": now
+                            }
+                            result = await games_collection.insert_one(game_doc)
+                            game_id = str(result.inserted_id)
+                            
+                            # Notify both players
+                            match_start_message = {
+                                "type": "game_start", 
+                                "game_id": game_id, 
+                                "opponent": {"id": p2["id"], "username": p2.get("username", "Unknown")},
+                                "your_color": "black"
+                            }
+                            await game_manager.send_to_user(p1_id, match_start_message)
+                            
+                            match_start_message["opponent"] = {"id": p1["id"], "username": p1.get("username", "Unknown")}
+                            match_start_message["your_color"] = "white"
+                            await game_manager.send_to_user(p2_id, match_start_message)
+                            
+                            await game_manager.broadcast_queue_update()
+                            print(f"Match created with ID: {game_id}")
+                        else:
+                            print("Error: One or both players not found in online_players")
+                            # Put players back in queue
+                            if p1_id: game_manager.waiting_queue.append(p1_id)
+                            if p2_id: game_manager.waiting_queue.append(p2_id)
+                            
             elif msg_type == "leave_queue":
                 if user.id in game_manager.waiting_queue:
                     game_manager.waiting_queue.remove(user.id)
+                    print(f"User {user.username} left queue. Queue size: {len(game_manager.waiting_queue)}")
                     await game_manager.broadcast_queue_update()
+                    
+            elif msg_type == "heartbeat":
+                # Respond to heartbeat to keep connection alive
+                await websocket.send_text(json.dumps({
+                    "type": "heartbeat_response",
+                    "timestamp": datetime.utcnow().isoformat()
+                }))
+                
     except WebSocketDisconnect:
         print(f"User {user.username} disconnected from lobby")
+    except Exception as e:
+        print(f"Error in lobby websocket for {user.username}: {e}")
+    finally:
+        # Cleanup on disconnect
         game_manager.disconnect_from_lobby(user.id)
         await game_manager.broadcast_to_lobby({"type": "player_left", "user_id": user.id})
         await game_manager.broadcast_online_players()
         await game_manager.broadcast_queue_update()
+        print(f"Cleanup completed for {user.username}")
 
 # @router.websocket("/ws/lobby/{user_id}")
 # async def websocket_lobby_endpoint(websocket: WebSocket, user_id: str):
@@ -354,7 +414,7 @@ async def websocket_lobby_token_endpoint(websocket: WebSocket):
 #         game_manager.disconnect_from_lobby(user_id)
 #         await game_manager.broadcast_to_lobby({"type": "player_left", "user_id": user_id})
 
-@router.websocket("/ws/game/{game_id}")
+@router.websocket("/game/{game_id}")
 async def websocket_game_endpoint(
     websocket: WebSocket, 
     game_id: str,
@@ -362,8 +422,32 @@ async def websocket_game_endpoint(
 ):
     """WebSocket endpoint for real-time game communication"""
     
-    print(f"WebSocket connection attempt for game {game_id}")
-    print(f"Token received: {token[:50] if token else 'None'}...")
+    print(f"=== GAME WEBSOCKET FUNCTION CALLED ===")
+    print(f"game_id: {game_id}")
+    print(f"token: {token[:50] if token else 'None'}...")
+    print(f"websocket: {websocket}")
+    print(f"websocket.client: {websocket.client}")
+    
+    try:
+        print(f"=== GAME WEBSOCKET DEBUG START ===")
+        print(f"WebSocket connection attempt for game {game_id}")
+        print(f"Token received: {token[:50] if token else 'None'}...")
+        print(f"WebSocket client: {websocket.client}")
+        
+        try:
+            # First accept the connection
+            print("Accepting WebSocket connection...")
+            await websocket.accept()
+            print("WebSocket connection accepted successfully!")
+        except Exception as e:
+            print(f"ERROR accepting WebSocket connection: {e}")
+            return
+    except Exception as e:
+        print(f"ERROR in websocket_game_endpoint (before accept): {e}")
+        print(f"Exception type: {type(e)}")
+        import traceback
+        traceback.print_exc()
+        return
     
     # Authenticate user
     if not token:

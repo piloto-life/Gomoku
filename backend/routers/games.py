@@ -30,14 +30,35 @@ async def create_game(request: CreateGameRequest, current_user: UserPublic = Dep
     """Create a new game with specified mode and difficulty"""
     try:
         print(f"🎮 Creating game - Mode: {request.mode}, User: {current_user.username}")
+        
+        # Validar modo de jogo
+        valid_modes = ["pvp-local", "pvp-online", "pve"]
+        if request.mode not in valid_modes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid game mode. Must be one of: {valid_modes}"
+            )
+        
+        # Validar dificuldade para jogos PvE
+        if request.mode == "pve":
+            valid_difficulties = ["easy", "medium", "hard"]
+            if request.difficulty not in valid_difficulties:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid difficulty. Must be one of: {valid_difficulties}"
+                )
+        
         games_collection = await get_collection("games")
         print(f"✅ Got games collection")
+        
+        # Determinar status inicial baseado no modo
+        initial_status = "active" if request.mode == "pve" else "waiting"
         
         # Create game document
         game_doc = {
             "mode": request.mode,
             "difficulty": request.difficulty,
-            "status": "waiting",
+            "status": initial_status,
             "board": [[None for _ in range(19)] for _ in range(19)],
             "current_player": "black",
             "players": {
@@ -51,7 +72,7 @@ async def create_game(request: CreateGameRequest, current_user: UserPublic = Dep
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         }
-        print(f"📄 Game document created")
+        print(f"📄 Game document created with status: {initial_status}")
         
         # Add AI player for PvE mode
         if request.mode == "pve":
@@ -64,22 +85,31 @@ async def create_game(request: CreateGameRequest, current_user: UserPublic = Dep
         
         print(f"💾 Inserting game into database...")
         result = await games_collection.insert_one(game_doc)
-        print(f"✅ Game inserted with ID: {result.inserted_id}")
+        game_id = str(result.inserted_id)
+        print(f"✅ Game inserted with ID: {game_id}")
         
         response = GameResponse(
-            id=str(result.inserted_id),
+            id=game_id,
             mode=request.mode,
-            status="waiting",
+            status=initial_status,
             created_at=game_doc["created_at"]
         )
-        print("📡 Broadcasting to lobby...")
-        # Convert datetime to ISO string for JSON serialization
-        game_data = response.dict()
-        game_data["created_at"] = game_doc["created_at"].isoformat()
-        await game_manager.broadcast_to_lobby({"type": "game_created", "game": game_data})
+        
+        # Só faz broadcast para lobby se for partida online (que precisa de outro jogador)
+        if request.mode == "pvp-online":
+            print("📡 Broadcasting game to lobby for matchmaking...")
+            game_data = response.dict()
+            game_data["created_at"] = game_doc["created_at"].isoformat()
+            await game_manager.broadcast_to_lobby({"type": "game_created", "game": game_data})
+        else:
+            print("🎯 Single-player or local game - no lobby broadcast needed")
+        
         print("✅ Game creation completed successfully")
         return response
         
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except Exception as e:
         print(f"❌ Error creating game: {str(e)}")
         print(f"❌ Error type: {type(e).__name__}")

@@ -136,8 +136,80 @@ const Lobby: React.FC = () => {
               setWaitingQueue(message.queue);
               break;
             case 'game_start':
-              const playerIds = message.players.map((p: OnlinePlayer) => p.id);
-              if (playerIds.includes(user.id)) {
+              logger.info('WEBSOCKET', 'Game start message received', { message });
+              
+              // Enhanced robust parsing for game_start message
+              let playerIds: string[] = [];
+              let shouldNavigate = false;
+              
+              // Method 1: Direct players array with id field
+              if (message.players && Array.isArray(message.players)) {
+                try {
+                  playerIds = message.players
+                    .filter((p: any) => p && typeof p === 'object')
+                    .map((p: any) => p.id || p.user_id || p.userId)
+                    .filter((id: any) => id); // Remove null/undefined values
+                    
+                  logger.debug('WEBSOCKET', 'Extracted player IDs from players array', { playerIds });
+                } catch (err) {
+                  logger.warn('WEBSOCKET', 'Error parsing players array', { error: err, players: message.players });
+                }
+              }
+              
+              // Method 2: Alternative player_ids field
+              if (playerIds.length === 0 && message.player_ids && Array.isArray(message.player_ids)) {
+                playerIds = message.player_ids.filter((id: any) => id);
+                logger.debug('WEBSOCKET', 'Extracted player IDs from player_ids array', { playerIds });
+              }
+              
+              // Method 3: Check if current user is mentioned directly
+              if (playerIds.length === 0 && message.game_id && user?.id) {
+                // Look for user ID in various possible message fields
+                const messageStr = JSON.stringify(message).toLowerCase();
+                const userIdStr = user.id.toLowerCase();
+                
+                if (messageStr.includes(userIdStr)) {
+                  logger.info('WEBSOCKET', 'User ID found in message content, assuming participation', { 
+                    gameId: message.game_id, 
+                    userId: user.id 
+                  });
+                  shouldNavigate = true;
+                } else {
+                  logger.warn('WEBSOCKET', 'User ID not found in game_start message', { 
+                    message, 
+                    userId: user.id 
+                  });
+                }
+              }
+              
+              // Decide whether to navigate
+              if (playerIds.includes(user?.id || '')) {
+                logger.info('WEBSOCKET', 'User confirmed in player list, navigating', { 
+                  gameId: message.game_id, 
+                  userId: user.id, 
+                  playerIds 
+                });
+                shouldNavigate = true;
+              } else if (shouldNavigate) {
+                logger.info('WEBSOCKET', 'User participation detected via content match, navigating', { 
+                  gameId: message.game_id, 
+                  userId: user.id 
+                });
+              } else if (playerIds.length === 0 && message.game_id) {
+                logger.warn('WEBSOCKET', 'No player information found, but game_id present - attempting navigation', { 
+                  gameId: message.game_id, 
+                  userId: user.id 
+                });
+                shouldNavigate = true;
+              } else {
+                logger.info('WEBSOCKET', 'User not participating in this game', { 
+                  gameId: message.game_id, 
+                  userId: user.id, 
+                  playerIds 
+                });
+              }
+              
+              if (shouldNavigate && message.game_id) {
                 navigate(`/game/${message.game_id}`);
               }
               break;
@@ -212,10 +284,35 @@ const Lobby: React.FC = () => {
 
   const handleCreateGame = async () => {
     try {
-      await createGame(selectedGameMode, aiDifficulty);
-      navigate('/game');
+      logger.userAction('CREATE_GAME_CLICKED', 'Lobby', { gameMode: selectedGameMode, difficulty: aiDifficulty });
+      
+  const result = await createGame(selectedGameMode, aiDifficulty);
+      
+      if (result && result.success && result.gameId) {
+        logger.info('LOBBY', 'Game created successfully, navigating', { 
+          gameId: result.gameId, 
+          gameMode: selectedGameMode,
+          status: result.status 
+        });
+        
+        // Navigate to specific game
+        navigate(`/game/${result.gameId}`);
+      } else {
+        // Fallback for local games or games without specific ID
+        logger.warn('LOBBY', 'Game created but no specific ID returned, using generic navigation');
+        navigate('/game');
+      }
     } catch (error) {
+      logger.error('LOBBY', 'Failed to create game', { 
+        gameMode: selectedGameMode, 
+        difficulty: aiDifficulty, 
+        error 
+      });
       console.error('Erro ao criar jogo:', error);
+      
+      // Show user-friendly error message
+      // TODO: Add proper error notification system
+      alert('Erro ao criar jogo. Tente novamente.');
     }
   };
 

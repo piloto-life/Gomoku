@@ -28,14 +28,156 @@ const GamePage: React.FC = () => {
     return <div>Redirecionando para o lobby...</div>;
   }
 
+  // Check if it's a local game (local games have IDs starting with "local-")
+  const isLocalGame = gameId.startsWith('local-');
+  
+  logger.info('GAME_PAGE', 'Game type determined', { gameId, isLocalGame });
+
+  // For local games, don't use WebSocket provider
+  if (isLocalGame) {
+    return <LocalGameComponent />;
+  }
+
+  // For online games, use WebSocket provider
   return (
     <GameWebSocketProvider gameId={gameId}>
-      <Game />
+      <OnlineGameComponent />
     </GameWebSocketProvider>
   );
 };
 
-const Game: React.FC = () => {
+// Local Game Component (uses GameContext)
+const LocalGameComponent: React.FC = () => {
+  const { gameId } = useParams<{ gameId: string }>();
+  const navigate = useNavigate();
+  const { gameState, loadGame, leaveGame, makeMove } = useGameFromRoot();
+  const { updateUser } = useAuth();
+  
+  // Local games are always "connected" and have no connection errors
+  const isConnected = true;
+  const error = null;
+  const [isReconnecting] = useState(false); // Always false for local games
+  const [showEndModal, setShowEndModal] = useState(false);
+  const [endMessage, setEndMessage] = useState('');
+  const [winnerName, setWinnerName] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (gameId) {
+      logger.info('GAME', 'Loading local game data', { gameId });
+      loadGame(gameId);
+    }
+  }, [gameId, loadGame]);
+
+  // Detect end of game and show modal
+  useEffect(() => {
+    if (gameState && gameState.status === 'finished') {
+      let msg = '';
+      let winner = undefined;
+      if (gameState.winner === 'black' || gameState.winner === 'white') {
+        const winnerColor = gameState.winner;
+        const winnerPlayer = gameState.players[winnerColor];
+        winner = winnerPlayer?.name || winnerColor;
+        msg = `Vitória de ${winner}!`;
+      } else {
+        msg = 'Empate!';
+      }
+      setWinnerName(winner);
+      setEndMessage(msg);
+      setShowEndModal(true);
+    } else {
+      setShowEndModal(false);
+    }
+  }, [gameState]);
+
+  const handleLeaveGame = async () => {
+    if (gameId) {
+      await leaveGame(gameId);
+      await updateUser();
+      navigate('/lobby');
+    }
+  };
+
+  const handleReturnToLobby = async () => {
+    setShowEndModal(false);
+    // Update user stats
+    try {
+      const updatedUser = await authAPI.getCurrentUser();
+      updateUser(updatedUser);
+    } catch (e) {
+      // ignore
+    }
+    handleLeaveGame();
+  };
+
+  const handlePlayAgain = () => {
+    setShowEndModal(false);
+    navigate('/lobby');
+  };
+
+  // Render the game UI (same as original Game component)
+  if (!gameState) {
+    return (
+      <div className="game-loading">
+        <div>Carregando jogo...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="game-error">
+        <div>Erro: {error}</div>
+        <button onClick={() => navigate('/lobby')}>Voltar ao Lobby</button>
+      </div>
+    );
+  }
+
+  // For local games, we don't show "connecting" state
+  if (!isConnected && !gameId?.startsWith('local-')) {
+    return (
+      <div className="game-connecting">
+        <div>{isReconnecting ? 'Reconectando ao jogo...' : 'Conectando ao jogo...'}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="game-container">
+      {showEndModal && (
+        <GameEndModal 
+          isOpen={showEndModal}
+          message={endMessage}
+          winnerName={winnerName}
+          onPlayAgain={handlePlayAgain}
+          onReturnToLobby={handleReturnToLobby}
+        />
+      )}
+
+      <div className="game-header">
+        <h1>Gomoku - {gameState.gameMode}</h1>
+        <button onClick={handleLeaveGame} className="btn btn-secondary">
+          Sair do Jogo
+        </button>
+      </div>
+
+      <div className="game-content">
+        <div className="game-main">
+          <GameBoard gameState={gameState} onMove={makeMove} />
+          <GameInfo gameState={gameState} />
+        </div>
+        
+        {gameState.gameMode === 'pvp-online' && (
+          <div className="game-sidebar">
+            <GameChat />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Online Game Component (uses GameWebSocketContext)  
+const OnlineGameComponent: React.FC = () => {
   const { gameId } = useParams<{ gameId: string }>();
   const navigate = useNavigate();
   const { loadGame, leaveGame } = useGameFromRoot();
@@ -48,7 +190,7 @@ const Game: React.FC = () => {
 
   useEffect(() => {
     if (gameId) {
-      logger.info('GAME', 'Loading game data', { gameId });
+      logger.info('GAME', 'Loading online game data', { gameId });
       loadGame(gameId);
     }
   }, [gameId, loadGame]);
