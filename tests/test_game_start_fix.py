@@ -166,8 +166,8 @@ class TestGameStartMessageFix(unittest.TestCase):
             
             if user_id in player_ids:
                 should_navigate = True
-            elif message.get('game_id') and user_id:
-                # Fallback for minimal format
+            elif len(player_ids) == 0 and message.get('game_id') and user_id:
+                # Fallback for minimal format (only when there is no player info)
                 should_navigate = True
             
             self.assertEqual(should_navigate, case['should_navigate'], 

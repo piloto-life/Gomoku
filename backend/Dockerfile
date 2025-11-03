@@ -13,6 +13,15 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 
 # Install Python dependencies
+# NOTE: If you encounter a pip error like:
+#   THESE PACKAGES DO NOT MATCH THE HASHES FROM THE REQUIREMENTS FILE
+# during a Docker build, it's usually due to a stale Docker build cache
+# or an unexpected requirements file in the build context. To resolve:
+#   1) Rebuild without cache:
+#        docker compose build --no-cache backend
+#   2) Or clear builder cache:
+#        docker builder prune --all --force
+# This comment is intentionally informational to help future debugging.
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code

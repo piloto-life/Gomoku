@@ -1,0 +1,36 @@
+version: '3.8'
+
+# Debug override for development
+services:
+  backend:
+    command: >
+      sh -c "
+        pip install debugpy &&
+        python -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m uvicorn app:app --host 0.0.0.0 --port 9000 --reload --log-level debug
+      "
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    stdin_open: true
+    tty: true
+
+  frontend:
+    command: >
+      sh -c "
+        npm install &&
+        npm start
+      "
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+      - FAST_REFRESH=true
+      - GENERATE_SOURCEMAP=true
+      - DEBUG=true
+      - REACT_APP_DEBUG=true
+
+  # Enable mongo-express for debug
+  mongo-express:
+    profiles: []  # Remove profile restriction for debug mode

@@ -34,7 +34,27 @@ backend/
 - **Player**: Representa jogadores humanos e IA
 - **Símbolos**: Define caracteres Unicode para visualização do tabuleiro
 
-## 🚀 Roadmap de Desenvolvimento
+## � Problemas Corrigidos (Session 2)
+
+### WebSocket Connection Stability
+- **Issue**: Lobby WebSocket desconectava imediatamente após conectar, impedindo a criação de partidas
+- **Root Cause**: Backend aceitava nova conexão ANTES de encerrar conexão antiga, causando disconnect imediato
+- **Fix**: Reordenar fluxo - autenticar token → fechar conexão antiga → aceitar nova conexão
+- **Status**: ✅ Corrigido (commit: WebSocket connection order fix)
+
+### Game Creation / Matchmaking
+- **Issue**: Players desapareciam da fila quando reconectavam ao lobby
+- **Root Cause**: `disconnect_from_lobby()` removia user de `online_players`
+- **Fix**: Durante reconexão, apenas remover socket, manter user em `online_players`
+- **Status**: ✅ Corrigido
+
+### Game Start Message Parsing
+- **Issue**: Frontend não conseguia extrair player_id da mensagem `game_start`
+- **Root Cause**: Heurística de parsing era pouco robusta
+- **Fix**: Implementar parsing rigoroso - require `your_id` OR `player_ids` fields
+- **Status**: ✅ Corrigido
+
+## �🚀 Roadmap de Desenvolvimento
 
 ### Fase 1: Modernização do Backend ✅
 - [x] Migração para FastAPI
@@ -138,6 +158,31 @@ npm start
 # MongoDB
 docker-compose up -d mongodb
 ```
+
+## API — Criação de partidas (POST /api/games/create)
+
+Endpoint para criar partidas. Payload esperado (JSON):
+
+```
+{
+	"mode": "pvp-online" | "pvp-local" | "pve",
+	"difficulty": "easy" | "medium" | "hard"  // opcional, apenas para PvE
+}
+```
+
+Resposta (exemplo):
+
+```
+{
+	"id": "690770e202a65b3fd95e69f3",
+	"mode": "pvp-online",
+	"status": "waiting",
+	"created_at": "2025-11-02T14:57:16.463Z"
+}
+```
+
+Nota sobre correção: a API agora garante que o documento de jogo sempre contenha a chave `players.white` (um objeto vazio quando o oponente ainda não entrou). Isso evita erros no frontend e nas rotas que acessam `players.white.id` quando os dados estão parcialmente mockados ou incompletos.
+
 
 ## 📋 Requisitos do Projeto UFSC
 

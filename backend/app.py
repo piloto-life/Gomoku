@@ -7,7 +7,7 @@ import os
 import json
 
 from database import connect_to_mongo, close_mongo_connection
-from routers import auth, users, websocket_games, lobby
+from routers import auth, users, websocket_games, lobby, recordings, webrtc, ranking, admin
 from routers.games import router as games_router
 from models.database import database
 
@@ -62,6 +62,10 @@ app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(games_router, prefix="/api/games", tags=["games"])
 app.include_router(websocket_games.router, prefix="/ws", tags=["websocket-games"])
 app.include_router(lobby.router, prefix="/api/lobby", tags=["lobby"])
+app.include_router(recordings.router, prefix="/api", tags=["recordings"])
+app.include_router(webrtc.router, prefix="/api", tags=["webrtc"])
+app.include_router(ranking.router, prefix="/api", tags=["ranking"])
+app.include_router(admin.router, prefix="/api", tags=["admin"])
 
 @app.get("/")
 async def root():

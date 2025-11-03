@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import './index.css';
+import './styles/index.css'; // Updated to use modular styles
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 import { UIProvider } from './contexts/UIContext';

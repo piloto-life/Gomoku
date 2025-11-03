@@ -86,20 +86,35 @@ class GameConnectionManager:
 
     async def connect_to_game(self, websocket: WebSocket, game_id: str, user_id: str):
         """Connect a user to a specific game room"""
-        # Connection already accepted in endpoint
-        
-        # Add to active connections
-        self.active_connections.append(websocket)
-        
-        # Add to user connections
+        # If there's an existing connection for this user, replace it
+        existing = self.user_connections.get(user_id)
+        if existing and existing is not websocket:
+            try:
+                await existing.send_text(json.dumps({"type": "session_replaced", "reason": "New connection established", "game_id": game_id}))
+            except Exception:
+                pass
+            try:
+                await existing.close(code=4000, reason="New connection established")
+            except Exception:
+                pass
+            # Clean up references to the old socket
+            try:
+                self._remove_connection(existing)
+            except Exception:
+                pass
+
+        # Add to active connections if not present
+        if websocket not in self.active_connections:
+            self.active_connections.append(websocket)
+
+        # Map user to this websocket
         self.user_connections[user_id] = websocket
-        
+
         # Add to game room
         if game_id not in self.game_rooms:
             self.game_rooms[game_id] = []
-        import copy
-        from datetime import datetime
-        self.game_rooms[game_id].append(websocket)
+        if websocket not in self.game_rooms[game_id]:
+            self.game_rooms[game_id].append(websocket)
 
     def disconnect_from_game(self, websocket: WebSocket, game_id: str, user_id: str):
         """Disconnect a user from a game room"""
@@ -108,7 +123,8 @@ class GameConnectionManager:
             self.active_connections.remove(websocket)
         
         # Remove from user connections
-        if user_id in self.user_connections:
+        # Only remove the user mapping if it points to the websocket being removed
+        if user_id in self.user_connections and self.user_connections.get(user_id) == websocket:
             del self.user_connections[user_id]
         
         # Remove from game room
@@ -119,15 +135,62 @@ class GameConnectionManager:
             if not self.game_rooms[game_id]:
                 del self.game_rooms[game_id]
 
+    def _remove_connection(self, websocket: WebSocket):
+        """Internal helper to remove all references to a websocket connection."""
+        # Remove from active connections
+        try:
+            if websocket in self.active_connections:
+                self.active_connections.remove(websocket)
+        except Exception:
+            pass
+
+        # Find user ids associated with this websocket
+        user_ids = [uid for uid, conn in list(self.user_connections.items()) if conn == websocket]
+        for uid in user_ids:
+            try:
+                # Remove user mapping
+                if uid in self.user_connections and self.user_connections.get(uid) == websocket:
+                    del self.user_connections[uid]
+            except Exception:
+                pass
+            # Remove online player and waiting queue entries
+            if uid in self.online_players:
+                try:
+                    del self.online_players[uid]
+                except Exception:
+                    pass
+            if uid in self.waiting_queue:
+                try:
+                    self.waiting_queue.remove(uid)
+                except ValueError:
+                    pass
+
+        # Remove from any game rooms
+        for gid, conns in list(self.game_rooms.items()):
+            if websocket in conns:
+                try:
+                    conns.remove(websocket)
+                except ValueError:
+                    pass
+                if not conns:
+                    try:
+                        del self.game_rooms[gid]
+                    except Exception:
+                        pass
+
     async def send_to_user(self, user_id: str, message: Dict):
         """Send message to a specific user"""
-        if user_id in self.user_connections:
+        connection = self.user_connections.get(user_id)
+        if connection:
             try:
-                await self.user_connections[user_id].send_text(json.dumps(message))
+                await connection.send_text(json.dumps(message))
                 return True
             except Exception:
-                # Remove dead connection
-                del self.user_connections[user_id]
+                # Clean up any references to this dead connection
+                try:
+                    self._remove_connection(connection)
+                except Exception:
+                    pass
                 return False
         return False
 
@@ -138,8 +201,9 @@ class GameConnectionManager:
 
         message_str = json.dumps(message)
         disconnected = []
-        
-        for connection in self.game_rooms[game_id]:
+
+        # Iterate over a copy to avoid modification during iteration
+        for connection in list(self.game_rooms[game_id]):
             # Skip the excluded user
             if exclude_user:
                 user_id = None
@@ -149,15 +213,17 @@ class GameConnectionManager:
                         break
                 if user_id == exclude_user:
                     continue
-            
             try:
                 await connection.send_text(message_str)
             except Exception:
                 disconnected.append(connection)
-        
-        # Remove dead connections
+
+        # Remove dead connections and clean up mappings
         for conn in disconnected:
-            self.game_rooms[game_id].remove(conn)
+            try:
+                self._remove_connection(conn)
+            except Exception:
+                pass
 
     async def send_game_move(self, game_id: str, move_data: Dict, from_user: str):
         """Send move to all players in the game except the sender"""
@@ -243,11 +309,7 @@ async def websocket_lobby_token_endpoint(websocket: WebSocket):
     
     print("Lobby WebSocket connection attempt")
     
-    # First accept the connection
-    await websocket.accept()
-    print("Lobby WebSocket connection accepted!")
-    
-    # Extract token from query string
+    # Extract token from query string BEFORE accepting connection
     query_string = websocket.url.query
     print(f"Query string: {query_string}")
     
@@ -261,29 +323,51 @@ async def websocket_lobby_token_endpoint(websocket: WebSocket):
     
     print(f"Token extracted: {token[:50] if token else 'None'}...")
     
-    # Authenticate user
+    # Authenticate user BEFORE accepting connection
     if not token:
-        print("No token provided, closing connection")
+        print("No token provided, rejecting connection")
         await websocket.close(code=1008, reason="Authentication token required")
         return
     
     user = await get_user_from_token(token)
     if not user:
-        print("Invalid token, closing connection")
+        print("Invalid token, rejecting connection")
         await websocket.close(code=1008, reason="Invalid authentication token")
         return
     
     print(f"User authenticated: {user.username} ({user.id})")
     
     # Check if user is already connected (prevent duplicate connections)
+    # IMPORTANT: Close old connection BEFORE accepting new one
     if user.id in game_manager.user_connections:
         print(f"User {user.username} already connected, closing old connection")
         try:
             old_ws = game_manager.user_connections[user.id]
-            await old_ws.close(code=1000, reason="New connection established")
-        except:
+            # Notify the old connection that it is being replaced, then close with an application-specific code
+            try:
+                await old_ws.send_text(json.dumps({"type": "session_replaced", "reason": "New connection established"}))
+            except Exception:
+                pass
+            # Use a non-1000 close code to signal a server-driven replacement
+            try:
+                await old_ws.close(code=4000, reason="New connection established")
+            except Exception:
+                pass
+        except Exception:
             pass  # Ignore errors from closing old connection
-        game_manager.disconnect_from_lobby(user.id)
+        # Remove old WebSocket from active connections, but KEEP user in online_players
+        # so they remain available for matchmaking during queue join.
+        if old_ws in game_manager.active_connections:
+            game_manager.active_connections.remove(old_ws)
+        # Remove from any game rooms (if they were in one)
+        for gid in list(game_manager.game_rooms.keys()):
+            if old_ws in game_manager.game_rooms[gid]:
+                game_manager.game_rooms[gid].remove(old_ws)
+        # Do NOT call disconnect_from_lobby() as that removes from online_players
+    
+    # NOW accept the new connection (after handling old one)
+    await websocket.accept()
+    print("Lobby WebSocket connection accepted!")
 
     # Connect to lobby (pass UserPublic dict)
     await game_manager.connect_to_lobby(websocket, user.id, user.dict())
@@ -357,20 +441,41 @@ async def websocket_lobby_token_endpoint(websocket: WebSocket):
                             game_id = str(result.inserted_id)
                             
                             # Notify both players
-                            match_start_message = {
-                                "type": "game_start", 
-                                "game_id": game_id, 
-                                "opponent": {"id": p2["id"], "username": p2.get("username", "Unknown")},
-                                "your_color": "black"
+                            # Include full players info and player_ids so the client can reliably
+                            # detect which user is the recipient without heuristic parsing.
+                            players_payload = [
+                                {"id": p1["id"], "username": p1.get("username", p1.get("email", "")), "color": "black"},
+                                {"id": p2["id"], "username": p2.get("username", p2.get("email", "")), "color": "white"}
+                            ]
+
+                            match_start_message_p1 = {
+                                "type": "game_start",
+                                "game_id": game_id,
+                                "players": players_payload,
+                                "player_ids": [p1["id"], p2["id"]],
+                                "your_id": p1_id,
+                                "your_color": "black",
+                                "opponent": {"id": p2["id"], "username": p2.get("username", "Unknown")}
                             }
-                            await game_manager.send_to_user(p1_id, match_start_message)
-                            
-                            match_start_message["opponent"] = {"id": p1["id"], "username": p1.get("username", "Unknown")}
-                            match_start_message["your_color"] = "white"
-                            await game_manager.send_to_user(p2_id, match_start_message)
+                            send_p1_result = await game_manager.send_to_user(p1_id, match_start_message_p1)
+                            if not send_p1_result:
+                                print(f"Warning: Failed to send game_start to player 1 ({p1_id})")
+
+                            match_start_message_p2 = {
+                                "type": "game_start",
+                                "game_id": game_id,
+                                "players": players_payload,
+                                "player_ids": [p1["id"], p2["id"]],
+                                "your_id": p2_id,
+                                "your_color": "white",
+                                "opponent": {"id": p1["id"], "username": p1.get("username", "Unknown")}
+                            }
+                            send_p2_result = await game_manager.send_to_user(p2_id, match_start_message_p2)
+                            if not send_p2_result:
+                                print(f"Warning: Failed to send game_start to player 2 ({p2_id})")
                             
                             await game_manager.broadcast_queue_update()
-                            print(f"Match created with ID: {game_id}")
+                            print(f"Match created with ID: {game_id} (P1 sent: {send_p1_result}, P2 sent: {send_p2_result})")
                         else:
                             print("Error: One or both players not found in online_players")
                             # Put players back in queue
@@ -392,15 +497,25 @@ async def websocket_lobby_token_endpoint(websocket: WebSocket):
                 
     except WebSocketDisconnect:
         print(f"User {user.username} disconnected from lobby")
+        # Only disconnect if this is the current active connection
+        # (not if they've already reconnected)
+        if game_manager.user_connections.get(user.id) == websocket:
+            game_manager.disconnect_from_lobby(user.id)
+            await game_manager.broadcast_to_lobby({"type": "player_left", "user_id": user.id})
+            await game_manager.broadcast_online_players()
+            await game_manager.broadcast_queue_update()
+            print(f"Cleanup completed for {user.username}")
+        else:
+            print(f"Old connection closed for {user.username}, but they already reconnected")
     except Exception as e:
         print(f"Error in lobby websocket for {user.username}: {e}")
-    finally:
-        # Cleanup on disconnect
-        game_manager.disconnect_from_lobby(user.id)
-        await game_manager.broadcast_to_lobby({"type": "player_left", "user_id": user.id})
-        await game_manager.broadcast_online_players()
-        await game_manager.broadcast_queue_update()
-        print(f"Cleanup completed for {user.username}")
+        # Only cleanup on real exceptions if this is still the active connection
+        if game_manager.user_connections.get(user.id) == websocket:
+            game_manager.disconnect_from_lobby(user.id)
+            await game_manager.broadcast_to_lobby({"type": "player_left", "user_id": user.id})
+            await game_manager.broadcast_online_players()
+            await game_manager.broadcast_queue_update()
+            print(f"Cleanup completed for {user.username}")
 
 # @router.websocket("/ws/lobby/{user_id}")
 # async def websocket_lobby_endpoint(websocket: WebSocket, user_id: str):
@@ -490,11 +605,18 @@ async def websocket_game_endpoint(
     
     try:
         # Send welcome message
+        user_data = user.dict()
+        # Convert datetime fields in user data
+        if "created_at" in user_data and isinstance(user_data["created_at"], datetime):
+            user_data["created_at"] = user_data["created_at"].isoformat()
+        if "last_login" in user_data and user_data["last_login"] and isinstance(user_data["last_login"], datetime):
+            user_data["last_login"] = user_data["last_login"].isoformat()
+        
         welcome_message = {
             "type": "connected",
             "message": f"Connected to game {game_id}",
             "game_id": game_id,
-            "user": user.dict(),
+            "user": user_data,
             "timestamp": datetime.utcnow().isoformat()
         }
         await websocket.send_text(json.dumps(welcome_message))
@@ -502,6 +624,19 @@ async def websocket_game_endpoint(
         # Send current game state
         game["id"] = str(game["_id"])
         del game["_id"]
+        
+        # Convert datetime fields to ISO format strings
+        if "created_at" in game and isinstance(game["created_at"], datetime):
+            game["created_at"] = game["created_at"].isoformat()
+        if "updated_at" in game and isinstance(game["updated_at"], datetime):
+            game["updated_at"] = game["updated_at"].isoformat()
+        
+        # Convert datetime in moves if present
+        if "moves" in game:
+            for move in game["moves"]:
+                if "timestamp" in move and isinstance(move["timestamp"], datetime):
+                    move["timestamp"] = move["timestamp"].isoformat()
+        
         await game_manager.send_game_state(game_id, game)
         
         # Main message loop
@@ -588,7 +723,7 @@ async def websocket_game_endpoint(
                     await game_manager.send_game_move(game_id, move_data, user.id)
                     
                     # Check for win condition
-                    if check_win(board, (row, col)):
+                    if check_win(board, row, col):
                         await games_collection.update_one(
                             {"_id": ObjectId(game_id)},
                             {"$set": {"status": "finished", "winner": player_color}}
@@ -605,6 +740,19 @@ async def websocket_game_endpoint(
                         if updated_game:
                             updated_game["id"] = str(updated_game["_id"])
                             del updated_game["_id"]
+                            
+                            # Convert datetime fields to ISO format strings
+                            if "created_at" in updated_game and isinstance(updated_game["created_at"], datetime):
+                                updated_game["created_at"] = updated_game["created_at"].isoformat()
+                            if "updated_at" in updated_game and isinstance(updated_game["updated_at"], datetime):
+                                updated_game["updated_at"] = updated_game["updated_at"].isoformat()
+                            
+                            # Convert datetime in moves if present
+                            if "moves" in updated_game:
+                                for move in updated_game["moves"]:
+                                    if "timestamp" in move and isinstance(move["timestamp"], datetime):
+                                        move["timestamp"] = move["timestamp"].isoformat()
+                            
                             await game_manager.send_game_state(game_id, updated_game)
                     
                 else:

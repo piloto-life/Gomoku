@@ -137,78 +137,55 @@ const Lobby: React.FC = () => {
               break;
             case 'game_start':
               logger.info('WEBSOCKET', 'Game start message received', { message });
-              
-              // Enhanced robust parsing for game_start message
-              let playerIds: string[] = [];
+
+              // Strict parsing: prefer explicit identifiers sent by the server.
+              // Acceptable fields (in order): `your_id`, `players` (array with ids), `player_ids`.
+              // If none are present, skip auto-navigation to avoid false positives.
               let shouldNavigate = false;
-              
-              // Method 1: Direct players array with id field
-              if (message.players && Array.isArray(message.players)) {
-                try {
-                  playerIds = message.players
-                    .filter((p: any) => p && typeof p === 'object')
-                    .map((p: any) => p.id || p.user_id || p.userId)
-                    .filter((id: any) => id); // Remove null/undefined values
-                    
-                  logger.debug('WEBSOCKET', 'Extracted player IDs from players array', { playerIds });
-                } catch (err) {
-                  logger.warn('WEBSOCKET', 'Error parsing players array', { error: err, players: message.players });
-                }
-              }
-              
-              // Method 2: Alternative player_ids field
-              if (playerIds.length === 0 && message.player_ids && Array.isArray(message.player_ids)) {
-                playerIds = message.player_ids.filter((id: any) => id);
-                logger.debug('WEBSOCKET', 'Extracted player IDs from player_ids array', { playerIds });
-              }
-              
-              // Method 3: Check if current user is mentioned directly
-              if (playerIds.length === 0 && message.game_id && user?.id) {
-                // Look for user ID in various possible message fields
-                const messageStr = JSON.stringify(message).toLowerCase();
-                const userIdStr = user.id.toLowerCase();
-                
-                if (messageStr.includes(userIdStr)) {
-                  logger.info('WEBSOCKET', 'User ID found in message content, assuming participation', { 
-                    gameId: message.game_id, 
-                    userId: user.id 
-                  });
+
+              // 1) Direct your_id (single-recipient explicit field)
+              if (message.your_id) {
+                if (user?.id && message.your_id === user.id) {
+                  logger.info('WEBSOCKET', 'Game start targeted at this user (your_id match)', { gameId: message.game_id, userId: user.id });
                   shouldNavigate = true;
                 } else {
-                  logger.warn('WEBSOCKET', 'User ID not found in game_start message', { 
-                    message, 
-                    userId: user.id 
-                  });
+                  logger.info('WEBSOCKET', 'Game start for another user (your_id mismatch)', { gameId: message.game_id, your_id: message.your_id, currentUserId: user?.id });
+                  shouldNavigate = false;
                 }
-              }
-              
-              // Decide whether to navigate
-              if (playerIds.includes(user?.id || '')) {
-                logger.info('WEBSOCKET', 'User confirmed in player list, navigating', { 
-                  gameId: message.game_id, 
-                  userId: user.id, 
-                  playerIds 
-                });
-                shouldNavigate = true;
-              } else if (shouldNavigate) {
-                logger.info('WEBSOCKET', 'User participation detected via content match, navigating', { 
-                  gameId: message.game_id, 
-                  userId: user.id 
-                });
-              } else if (playerIds.length === 0 && message.game_id) {
-                logger.warn('WEBSOCKET', 'No player information found, but game_id present - attempting navigation', { 
-                  gameId: message.game_id, 
-                  userId: user.id 
-                });
-                shouldNavigate = true;
+
+              // 2) players array with explicit player objects
+              } else if (message.players && Array.isArray(message.players)) {
+                try {
+                  const playerIds = message.players
+                    .filter((p: any) => p && typeof p === 'object')
+                    .map((p: any) => p.id || p.user_id || p.userId)
+                    .filter((id: any) => id);
+
+                  if (user?.id && playerIds.includes(user.id)) {
+                    logger.info('WEBSOCKET', 'User found in players array; navigating', { gameId: message.game_id, playerIds });
+                    shouldNavigate = true;
+                  } else {
+                    logger.info('WEBSOCKET', 'User not in players array', { gameId: message.game_id, playerIds });
+                  }
+                } catch (err) {
+                  logger.warn('WEBSOCKET', 'Error parsing players array in game_start', { error: err, players: message.players });
+                }
+
+              // 3) player_ids array
+              } else if (message.player_ids && Array.isArray(message.player_ids)) {
+                const playerIds = message.player_ids.filter((id: any) => id);
+                if (user?.id && playerIds.includes(user.id)) {
+                  logger.info('WEBSOCKET', 'User found in player_ids; navigating', { gameId: message.game_id, playerIds });
+                  shouldNavigate = true;
+                } else {
+                  logger.info('WEBSOCKET', 'User not in player_ids', { gameId: message.game_id, playerIds });
+                }
+
               } else {
-                logger.info('WEBSOCKET', 'User not participating in this game', { 
-                  gameId: message.game_id, 
-                  userId: user.id, 
-                  playerIds 
-                });
+                // No explicit identifiers present — do not auto-navigate to prevent false positives.
+                logger.warn('WEBSOCKET', 'game_start received without explicit player identifiers; skipping auto-navigation', { gameId: message.game_id });
               }
-              
+
               if (shouldNavigate && message.game_id) {
                 navigate(`/game/${message.game_id}`);
               }
@@ -240,7 +217,30 @@ const Lobby: React.FC = () => {
       return () => {
         if (ws.current) {
           logger.info('WEBSOCKET', 'Closing lobby WebSocket connection');
-          ws.current.close();
+          const socket = ws.current;
+
+          // If the socket is still connecting, schedule a close on open
+          // to avoid the browser warning: "WebSocket is closed before the connection is established.".
+          if (socket.readyState === WebSocket.CONNECTING) {
+            const originalOnOpen = socket.onopen;
+            socket.onopen = (ev) => {
+              try {
+                socket.close(1000, 'User disconnect');
+              } catch (e) {
+                // ignore
+              }
+              if (typeof originalOnOpen === 'function') {
+                // preserve 'this' context when calling the original handler
+                (originalOnOpen as any).call(socket, ev as any);
+              }
+            };
+          } else {
+            try {
+              socket.close(1000, 'User disconnect');
+            } catch (e) {
+              // ignore
+            }
+          }
         }
       };
     }

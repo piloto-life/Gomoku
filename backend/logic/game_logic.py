@@ -1,34 +1,43 @@
-from typing import List, Tuple
+from typing import List, Optional
 
-def check_win(board: List[List[str]], last_move: Tuple[int, int]) -> bool:
-    """Check if the last move resulted in a win."""
+def check_win(board: List[List[Optional[str]]], row: int, col: int) -> Optional[str]:
+    """Check whether the move at (row, col) produced a winner.
+
+    Returns the color string ('black' or 'white') when there's a winner,
+    or None otherwise. This signature matches the expectations used in
+    the test-suite (check_win(board, row, col)).
+    """
+    # Basic validations
     if not board or not board[0]:
-        return False
+        return None
 
-    row, col = last_move
-    player = board[row][col]
-    if not player:
-        return False
+    if row < 0 or col < 0 or row >= len(board) or col >= len(board[0]):
+        return None
 
-    rows, cols = len(board), len(board[0])
+    if board[row][col] is None:
+        return None
 
-    def count_consecutive(dx: int, dy: int) -> int:
-        """Count consecutive stones in a given direction."""
-        count = 0
-        for i in range(1, 5):
-            r, c = row + i * dx, col + i * dy
-            if 0 <= r < rows and 0 <= c < cols and board[r][c] == player:
-                count += 1
-            else:
-                break
-        return count
-
-    # Check all 4 directions (horizontal, vertical, two diagonals)
+    color = board[row][col]
     directions = [(0, 1), (1, 0), (1, 1), (1, -1)]
-    for dx, dy in directions:
-        # Count in one direction and its opposite
-        count = 1 + count_consecutive(dx, dy) + count_consecutive(-dx, -dy)
-        if count >= 5:
-            return True
 
-    return False
+    for dr, dc in directions:
+        count = 1
+
+        # forward direction
+        r, c = row + dr, col + dc
+        while 0 <= r < len(board) and 0 <= c < len(board[0]) and board[r][c] == color:
+            count += 1
+            r += dr
+            c += dc
+
+        # backward direction
+        r, c = row - dr, col - dc
+        while 0 <= r < len(board) and 0 <= c < len(board[0]) and board[r][c] == color:
+            count += 1
+            r -= dr
+            c -= dc
+
+        if count >= 5:
+            return color
+
+    return None

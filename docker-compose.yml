@@ -58,6 +58,12 @@ services:
       - REACT_APP_API_URL=http://localhost:9000
       - REACT_APP_WS_URL=ws://localhost:9000
       - NODE_ENV=development
+      # Configure webpack-dev-server client socket so HMR client connects to the host port
+      # where the container's dev server is exposed (host:9001 -> container:3000)
+      - WDS_SOCKET_HOST=localhost
+      - WDS_SOCKET_PORT=9001
+      - WDS_SOCKET_PATH=/ws
+      - WDS_SOCKET_PROTOCOL=ws
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true
       - FAST_REFRESH=true

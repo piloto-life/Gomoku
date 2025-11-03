@@ -82,6 +82,13 @@ async def create_game(request: CreateGameRequest, current_user: UserPublic = Dep
                 "email": "ai@gomoku.com"
             }
             print(f"🤖 Added AI player for PvE mode")
+        else:
+            # Ensure there is always a `white` key in players so frontend
+            # and other code won't raise KeyError when expecting it.
+            # For online games the white player will be filled when an
+            # opponent joins; for local games we leave it as an empty dict.
+            if "white" not in game_doc["players"]:
+                game_doc["players"]["white"] = {}
         
         print(f"💾 Inserting game into database...")
         result = await games_collection.insert_one(game_doc)
@@ -133,10 +140,19 @@ async def get_games(current_user: UserPublic = Depends(get_current_user)):
             ]
         }).to_list(length=100)
         
-        # Convert ObjectId to string
+        # Convert ObjectId to string and ensure players.white exists
         for game in games:
             game["id"] = str(game["_id"])
             del game["_id"]
+
+            # Normalize players structure so frontend code can rely on keys
+            if isinstance(game.get("players"), dict):
+                if "black" not in game["players"]:
+                    game["players"]["black"] = {}
+                if "white" not in game["players"]:
+                    game["players"]["white"] = {}
+            else:
+                game["players"] = {"black": {}, "white": {}}
         
         return games
         
@@ -160,12 +176,15 @@ async def get_game(game_id: str, current_user: UserPublic = Depends(get_current_
                 detail="Game not found"
             )
         
-        # Check if user is part of this game
-        user_in_game = (
-            game["players"]["black"]["id"] == current_user.id or 
-            game["players"]["white"]["id"] == current_user.id
-        )
-        
+        # Check if user is part of this game (robust to missing player keys)
+        black_player = (game.get("players") or {}).get("black") or {}
+        white_player = (game.get("players") or {}).get("white") or {}
+
+        black_id = black_player.get("id") if isinstance(black_player, dict) else None
+        white_id = white_player.get("id") if isinstance(white_player, dict) else None
+
+        user_in_game = (black_id == current_user.id) or (white_id == current_user.id)
+
         if not user_in_game:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

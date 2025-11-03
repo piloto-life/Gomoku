@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Connection Test</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        .log { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; margin: 10px 0; }
+        button { padding: 10px 20px; margin: 5px; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Connection Test</h1>
+    <p>Token: <input type="text" id="token" size="100"></p>
+    <button onclick="connectLobby()">Connect to Lobby</button>
+    <button onclick="joinQueue()">Join Queue</button>
+    <button onclick="disconnect()">Disconnect</button>
+    
+    <h2>Logs:</h2>
+    <div class="log" id="log"></div>
+    
+    <script>
+        let ws = null;
+        
+        function log(msg, isError = false) {
+            const logDiv = document.getElementById('log');
+            const p = document.createElement('div');
+            p.textContent = new Date().toLocaleTimeString() + ': ' + msg;
+            if (isError) p.className = 'error';
+            else p.className = 'success';
+            logDiv.appendChild(p);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function connectLobby() {
+            const token = document.getElementById('token').value;
+            if (!token) {
+                log('Error: Token required', true);
+                return;
+            }
+            
+            const url = `ws://localhost:9000/ws/lobby?token=${token}`;
+            log(`Connecting to ${url}...`);
+            
+            ws = new WebSocket(url);
+            
+            ws.onopen = () => {
+                log('✓ WebSocket OPEN');
+            };
+            
+            ws.onmessage = (e) => {
+                const msg = JSON.parse(e.data);
+                log(`Message: ${msg.type} - ${JSON.stringify(msg)}`);
+            };
+            
+            ws.onerror = (e) => {
+                log('Error: ' + e, true);
+            };
+            
+            ws.onclose = (e) => {
+                log(`Closed: code=${e.code}, reason=${e.reason}`, true);
+            };
+        }
+        
+        function joinQueue() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('Error: WebSocket not open', true);
+                return;
+            }
+            log('Sending join_queue...');
+            ws.send(JSON.stringify({type: 'join_queue'}));
+        }
+        
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                log('Disconnecting...');
+            }
+        }
+    </script>
+</body>
+</html>

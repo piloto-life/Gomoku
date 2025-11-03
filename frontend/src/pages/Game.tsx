@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGame as useGameFromRoot } from '../contexts/GameContext';
 import { useAuth } from '../contexts/AuthContext';
-import { authAPI } from '../services/api';
+import { authAPI, gamesAPI } from '../services/api';
 import { GameWebSocketProvider, useGame } from '../contexts/GameWebSocketContext';
 import { usePageLogger } from '../hooks/useNavigationLogger';
 import GameBoard from '../components/GameBoard';
@@ -10,15 +10,37 @@ import GameInfo from '../components/GameInfo';
 import GameChat from '../components/GameChat';
 import logger from '../utils/logger';
 import GameEndModal from '../components/GameEndModal';
+import { GameState } from '../types';
 
 const GamePage: React.FC = () => {
   const { gameId } = useParams<{ gameId: string }>();
+  const [initialGameState, setInitialGameState] = useState<GameState | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Log page access
   usePageLogger('Game');
 
   useEffect(() => {
     logger.info('GAME_PAGE', 'Game page accessed', { gameId });
+  }, [gameId]);
+
+  // Load initial game state for online games
+  useEffect(() => {
+    if (gameId && !gameId.startsWith('local-')) {
+      logger.info('GAME', 'Loading initial game state via REST API', { gameId });
+      gamesAPI.getGame(gameId)
+        .then((game: GameState) => {
+          logger.info('GAME', 'Initial game state loaded', { gameId });
+          setInitialGameState(game);
+          setIsLoading(false);
+        })
+        .catch((error: any) => {
+          logger.error('GAME', 'Failed to load initial game state', { gameId, error });
+          setIsLoading(false);
+        });
+    } else {
+      setIsLoading(false);
+    }
   }, [gameId]);
 
   if (!gameId) {
@@ -38,9 +60,19 @@ const GamePage: React.FC = () => {
     return <LocalGameComponent />;
   }
 
-  // For online games, use WebSocket provider
+  // Show loading while fetching initial state
+  if (isLoading) {
+    return (
+      <div className="loading">
+        <div className="loading-spinner"></div>
+        <p className="loading-text">Carregando jogo...</p>
+      </div>
+    );
+  }
+
+  // For online games, use WebSocket provider with initial state
   return (
-    <GameWebSocketProvider gameId={gameId}>
+    <GameWebSocketProvider gameId={gameId} initialGameState={initialGameState}>
       <OnlineGameComponent />
     </GameWebSocketProvider>
   );
@@ -116,8 +148,9 @@ const LocalGameComponent: React.FC = () => {
   // Render the game UI (same as original Game component)
   if (!gameState) {
     return (
-      <div className="game-loading">
-        <div>Carregando jogo...</div>
+      <div className="loading">
+        <div className="loading-spinner"></div>
+        <p className="loading-text">Carregando jogo...</p>
       </div>
     );
   }
@@ -125,8 +158,12 @@ const LocalGameComponent: React.FC = () => {
   if (error) {
     return (
       <div className="game-error">
-        <div>Erro: {error}</div>
-        <button onClick={() => navigate('/lobby')}>Voltar ao Lobby</button>
+        <div className="error-icon">⚠️</div>
+        <h3>Erro na Partida</h3>
+        <p>{error}</p>
+        <button className="btn btn-secondary" onClick={() => navigate('/lobby')}>
+          Voltar ao Lobby
+        </button>
       </div>
     );
   }
@@ -134,41 +171,50 @@ const LocalGameComponent: React.FC = () => {
   // For local games, we don't show "connecting" state
   if (!isConnected && !gameId?.startsWith('local-')) {
     return (
-      <div className="game-connecting">
-        <div>{isReconnecting ? 'Reconectando ao jogo...' : 'Conectando ao jogo...'}</div>
+      <div className="loading">
+        <div className="loading-spinner"></div>
+        <p className="loading-text">{isReconnecting ? 'Reconectando ao jogo...' : 'Conectando ao jogo...'}</p>
       </div>
     );
   }
 
   return (
-    <div className="game-container">
-      {showEndModal && (
-        <GameEndModal 
-          isOpen={showEndModal}
-          message={endMessage}
-          winner={winnerName}
-          onPlayAgain={handlePlayAgain}
-          onReturnToLobby={handleReturnToLobby}
-        />
-      )}
-
-      <div className="game-header">
-        <h1>Gomoku - {gameState.gameMode}</h1>
-        <button onClick={handleLeaveGame} className="btn btn-secondary">
-          Sair do Jogo
-        </button>
-      </div>
-
-      <div className="game-content">
-        <div className="game-main">
-          <GameBoard gameState={gameState} onMove={makeMove} />
-          <GameInfo gameState={gameState} />
-        </div>
-        
-        {gameState.gameMode === 'pvp-online' && (
-          <div className="game-sidebar">
-          </div>
+    <div className="game-page">
+      <div className="game-container">
+        {showEndModal && (
+          <GameEndModal 
+            isOpen={showEndModal}
+            message={endMessage}
+            winner={winnerName}
+            onPlayAgain={handlePlayAgain}
+            onReturnToLobby={handleReturnToLobby}
+          />
         )}
+
+        <div className="game-header">
+          <h2 className="game-title">Gomoku - {gameState.gameMode === 'pvp-local' ? 'Local' : gameState.gameMode === 'pve' ? 'VS Computador' : 'Online'}</h2>
+          <div className="game-controls">
+            <span className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
+              {isConnected ? 'Conectado' : 'Desconectado'}
+            </span>
+            <button onClick={handleLeaveGame} className="btn btn-danger btn-sm">
+              Sair do Jogo
+            </button>
+          </div>
+        </div>
+
+        <div className="game-layout">
+          <div className="game-main">
+            <GameBoard gameState={gameState} onMove={makeMove} />
+          </div>
+          
+          <div className="game-sidebar">
+            <GameInfo gameState={gameState} />
+            {gameState.gameMode === 'pvp-online' && (
+              <GameChat gameId={gameId || ''} />
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -258,18 +304,42 @@ const OnlineGameComponent: React.FC = () => {
 
   if (!gameState) {
     return (
-      <div className="game-loading">
-        <div>Carregando jogo...</div>
+      <div className="loading">
+        <div className="loading-spinner"></div>
+        <p className="loading-text">Carregando jogo...</p>
       </div>
     );
   }
 
   if (error) {
+    // Check if this is a game over message (success) or actual error
+    const isGameOver = error.includes('Game Over') || error.includes('wins') || error.includes('venceu');
+    
+    if (isGameOver) {
+      logger.info('GAME', 'Game ended', { gameId, result: error });
+      return (
+        <div className="game-success-modal">
+          <div className="success-content">
+            <div className="success-icon">🎉</div>
+            <h2 className="success-title">{error}</h2>
+            <p className="success-message">Partida finalizada com sucesso!</p>
+            <button className="btn btn-primary" onClick={() => navigate('/lobby')}>
+              Voltar ao Lobby
+            </button>
+          </div>
+        </div>
+      );
+    }
+    
     logger.error('GAME', 'Game error displayed', { gameId, error });
     return (
       <div className="game-error">
-        <div>Erro: {error}</div>
-        <button onClick={() => navigate('/lobby')}>Voltar ao Lobby</button>
+        <div className="error-icon">⚠️</div>
+        <h3>Erro na Partida</h3>
+        <p>{error}</p>
+        <button className="btn btn-secondary" onClick={() => navigate('/lobby')}>
+          Voltar ao Lobby
+        </button>
       </div>
     );
   }
@@ -277,40 +347,46 @@ const OnlineGameComponent: React.FC = () => {
   if (!isConnected) {
     logger.warn('GAME', 'Game not connected to WebSocket', { gameId });
     return (
-      <div className="game-connecting">
-        <div>{isReconnecting ? 'Reconectando ao jogo...' : 'Conectando ao jogo...'}</div>
+      <div className="loading">
+        <div className="loading-spinner"></div>
+        <p className="loading-text">{isReconnecting ? 'Reconectando ao jogo...' : 'Conectando ao jogo...'}</p>
       </div>
     );
   }
 
   return (
-    <div className="game-container">
-      <GameEndModal
-        isOpen={showEndModal}
-        winner={winnerName}
-        message={endMessage}
-        onReturnToLobby={handleReturnToLobby}
-        onPlayAgain={handlePlayAgain}
-      />
-      <div className="game-header">
-        <h1>Gomoku - {gameState.gameMode}</h1>
-        <button onClick={handleLeaveGame} className="btn btn-secondary">
-          Voltar ao Lobby
-        </button>
-        {error && <div className="error-message">{error}</div>}
-        <div>Status: {isConnected ? 'Conectado' : 'Desconectado'}</div>
-      </div>
-      <div className="game-layout">
-        <div className="game-board-section">
-          <GameBoard gameState={gameState} onMove={(position) => makeMove(position)} />
+    <div className="game-page">
+      <div className="game-container">
+        <GameEndModal
+          isOpen={showEndModal}
+          winner={winnerName}
+          message={endMessage}
+          onReturnToLobby={handleReturnToLobby}
+          onPlayAgain={handlePlayAgain}
+        />
+        
+        <div className="game-header">
+          <h2 className="game-title">Gomoku - {gameState.gameMode === 'pvp-online' ? 'Online' : gameState.gameMode}</h2>
+          <div className="game-controls">
+            <span className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
+              {isConnected ? 'Conectado' : 'Desconectado'}
+            </span>
+            <button onClick={handleLeaveGame} className="btn btn-danger btn-sm">
+              Sair do Jogo
+            </button>
+          </div>
         </div>
-        <div className="game-sidebar">
-          <GameInfo gameState={gameState} />
-          {gameState.gameMode === 'pvp-online' && (
-            <div className="game-chat-section">
+        
+        <div className="game-layout">
+          <div className="game-main">
+            <GameBoard gameState={gameState} onMove={(position) => makeMove(position)} />
+          </div>
+          <div className="game-sidebar">
+            <GameInfo gameState={gameState} />
+            {gameState.gameMode === 'pvp-online' && (
               <GameChat gameId={gameId || ''} />
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>

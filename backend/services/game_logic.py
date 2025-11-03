@@ -15,11 +15,18 @@ class GameLogic:
         # Check if position is empty
         return board[position.row][position.col] is None
     
-    def make_move(self, board: List[List[Optional[str]]], position: Position, piece: PieceColor) -> List[List[Optional[str]]]:
-        """Make a move on the board"""
-        new_board = [row[:] for row in board]  # Deep copy
-        new_board[position.row][position.col] = piece.value
-        return new_board
+    def make_move(self, board: List[List[Optional[str]]], position: Position, piece: PieceColor) -> bool:
+        """Attempt to make a move on the board in-place.
+
+        Returns True if the move was applied, False otherwise.
+        This mutating, boolean-returning behavior matches the expectations
+        from the test-suite which assumes in-place updates.
+        """
+        if not self.is_valid_move(board, position):
+            return False
+
+        board[position.row][position.col] = piece.value
+        return True
     
     def check_winner(self, board: List[List[Optional[str]]], last_position: Position, piece: PieceColor) -> Optional[PieceColor]:
         """Check if there's a winner after the last move"""

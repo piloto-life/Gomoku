@@ -16,8 +16,18 @@ class PieceColor(str, Enum):
     WHITE = "white"
 
 class Position(BaseModel):
-    row: int = Field(..., ge=0, le=18)
-    col: int = Field(..., ge=0, le=18)
+    # Do not enforce 0-18 bounds at model creation time because some tests
+    # intentionally construct out-of-range positions (e.g. Position(-1, 9))
+    # and expect the game logic to handle them. Keep type validation only.
+    row: int
+    col: int
+
+    def __init__(self, *args, **kwargs):
+        # Allow positional initialization like Position(9, 9) in tests,
+        # while preserving BaseModel validation when keywords are used.
+        if len(args) == 2 and not kwargs:
+            kwargs = {"row": args[0], "col": args[1]}
+        super().__init__(**kwargs)
 
 class Move(BaseModel):
     id: str

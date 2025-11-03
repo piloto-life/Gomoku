@@ -48,9 +48,12 @@ export interface GameState {
 export interface User {
   id: string;
   name: string;
+  username: string;
   email: string;
   avatar?: string;
   age?: number;
+  is_admin?: boolean;
+  is_active?: boolean;
   location?: {
     city: string;
     state: string;

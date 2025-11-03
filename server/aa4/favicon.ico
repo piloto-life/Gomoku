@@ -1,0 +1,8 @@
+<!-- Favicon placeholder - Em um projeto real, seria um arquivo .ico binário -->
+<!-- Este é um placeholder SVG que pode ser convertido para favicon.ico -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <rect width="32" height="32" fill="#2563eb"/>
+  <circle cx="8" cy="8" r="3" fill="white"/>
+  <circle cx="24" cy="24" r="3" fill="black"/>
+  <text x="16" y="20" text-anchor="middle" fill="white" font-size="12" font-family="sans-serif">G</text>
+</svg>

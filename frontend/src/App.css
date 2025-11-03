@@ -83,39 +83,96 @@ body {
 
 /* Buttons */
 .btn {
-  padding: 0.5rem 1rem;
+  padding: 0.6rem 1.2rem;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   font-size: 1rem;
-  transition: all 0.2s;
+  font-weight: 500;
+  transition: all 0.3s ease;
   text-decoration: none;
   display: inline-block;
   text-align: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.btn:hover::before {
+  width: 300px;
+  height: 300px;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn:disabled:hover::before {
+  width: 0;
+  height: 0;
 }
 
 .btn-primary {
-  background-color: var(--primary-color);
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
   color: white;
 }
 
-.btn-primary:hover {
-  background-color: #0056b3;
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+  box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+  transform: translateY(-2px);
 }
 
 .btn-secondary {
-  background-color: var(--secondary-color);
+  background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
   color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #5a6268 0%, #4e555b 100%);
+  box-shadow: 0 4px 8px rgba(108,117,125,0.3);
+  transform: translateY(-2px);
 }
 
 .btn-success {
-  background-color: var(--success-color);
+  background: linear-gradient(135deg, #28a745 0%, #218838 100%);
   color: white;
 }
 
+.btn-success:hover:not(:disabled) {
+  background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
+  box-shadow: 0 4px 8px rgba(40,167,69,0.3);
+  transform: translateY(-2px);
+}
+
 .btn-danger {
-  background-color: var(--danger-color);
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
   color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
+  box-shadow: 0 4px 8px rgba(220,53,69,0.3);
+  transform: translateY(-2px);
 }
 
 /* Forms */
@@ -224,6 +281,61 @@ body {
   padding: 1rem;
   border-radius: 12px;
   box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  transition: all 0.3s ease;
+}
+
+/* Indicador de turno */
+.turn-indicator {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.turn-indicator.black {
+  background: linear-gradient(135deg, #2c2c2c 0%, #4a4a4a 100%);
+  color: #ffffff;
+  border: 2px solid #000000;
+}
+
+.turn-indicator.white {
+  background: linear-gradient(135deg, #f0f0f0 0%, #ffffff 100%);
+  color: #2c2c2c;
+  border: 2px solid #cccccc;
+}
+
+.my-turn-text {
+  color: #4CAF50;
+  animation: pulse 2s infinite;
+}
+
+.opponent-turn-text {
+  color: #FF9800;
+  opacity: 0.8;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Estado do tabuleiro */
+.game-board-container.my-turn {
+  box-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
+}
+
+.game-board-container.opponent-turn {
+  opacity: 0.85;
+}
+
+.game-board-container.processing {
+  pointer-events: none;
+  opacity: 0.7;
 }
 
 .board-coordinates {
@@ -278,11 +390,30 @@ body {
   align-items: center;
   justify-content: center;
   position: relative;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
 }
 
-.board-cell:hover {
-  background-color: #F5DEB3;
+.board-cell.clickable:hover {
+  background-color: #FFE4B5;
+  transform: scale(1.1);
+  box-shadow: 0 0 8px rgba(76, 175, 80, 0.6);
+  z-index: 10;
+}
+
+.board-cell.clickable .hover-indicator {
+  color: #4CAF50 !important;
+  opacity: 1 !important;
+  font-weight: bold;
+}
+
+.board-cell.disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.board-cell.disabled:hover {
+  background-color: #DEB887;
+  transform: none;
 }
 
 .board-cell.occupied {
@@ -355,14 +486,35 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem;
-  border-radius: 6px;
-  transition: background-color 0.2s;
+  padding: 0.75rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  background-color: rgba(0,0,0,0.02);
 }
 
 .player.active {
-  background-color: var(--primary-color);
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
   color: white;
+  border-color: #2e7d32;
+  box-shadow: 0 0 15px rgba(76, 175, 80, 0.5);
+  transform: scale(1.02);
+  animation: activePulse 2s infinite;
+}
+
+@keyframes activePulse {
+  0%, 100% { box-shadow: 0 0 15px rgba(76, 175, 80, 0.5); }
+  50% { box-shadow: 0 0 25px rgba(76, 175, 80, 0.8); }
+}
+
+.player.active .player-piece {
+  font-size: 20px;
+  animation: bounce 1s infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
 }
 
 .player-piece {

@@ -28,14 +28,16 @@ interface GameWebSocketProviderProps {
   gameId: string;
   children: React.ReactNode;
   onGameUpdate?: (gameState: GameState) => void;
+  initialGameState?: GameState | null;
 }
 
 export const GameWebSocketProvider: React.FC<GameWebSocketProviderProps> = ({
   gameId,
   children,
-  onGameUpdate
+  onGameUpdate,
+  initialGameState = null
 }) => {
-  const [gameState, setGameState] = useState<GameState | null>(null);
+  const [gameState, setGameState] = useState<GameState | null>(initialGameState);
   const [moves, setMoves] = useState<Move[]>([]);
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
