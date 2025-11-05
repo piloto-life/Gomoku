@@ -1,0 +1,543 @@
+%%------------------------------------------------------
+% 
+%% UNIVERSIDADE FEDERAL DE SANTA CATARINA - UFSC
+%
+%% Prof.: Wyllian B. da Silva
+%%
+%% Template: estilo IEEEtran [paper com duas colunas]
+%% Adaptado de: https://ieeeauthorcenter.ieee.org/create-your-ieee-article/use-authoring-tools-and-ieee-article-templates/ieee-article-templates/templates-for-transactions/
+%               https://ctan.org/tex-archive/macros/latex/contrib/IEEEtran?lang=en
+
+%% Instruções: http://mirrors.ctan.org/macros/latex/contrib/IEEEtran/IEEEtran_HOWTO.pdf
+%%
+%% Recomendações:
+%% Utilize o Editor Kile (SO Linux)
+%% Certifique-se de que a codificação de caracteres utilizada é a UTF-8
+%%
+%% ARQUIVO MODIFICADO PARA O PROJETO GOMOKU
+%%
+%%------------------------------------------------------
+
+\documentclass[journal]{IEEEtran}
+
+
+%%------------------------------------------------------
+%% Packages
+%%------------------------------------------------------
+\usepackage[T1]{fontenc}           %% Codificação de caracteres
+\usepackage[utf8]{inputenc}        %% Codificação de caracteres (conversão automática dos acentos)
+\usepackage[dvips]{graphicx}       %% para a macro includegraphics 
+\usepackage[english,brazil]{babel} %% PT_BR e EN (o último define a prioridade no arquivo)
+\usepackage{pgf}                   %% macro para criar gráficos
+\usepackage{epsfig}                %% or use the epsfig package if you prefer to use the old commands
+\usepackage{graphics}              %% use the graphics package for simple commands
+\usepackage{graphicx}              %% or 
+\usepackage{epstopdf}              %% enable EPS (convert to PDF)
+\usepackage{float}                 %% float environment
+\usepackage{eqparbox}              %% to define a group of boxes 
+\usepackage{hyphenat}              %% prevent hyphenation
+\usepackage{hyperref}              %% enalbe one-click link
+
+% Pacotes adicionados para o projeto (conforme docs/projeto.md)
+\usepackage{listings}              %% Para blocos de código
+\usepackage{xcolor}                %% Para cores no código
+
+% \usepackage{showframe} %% just for the example
+
+% \usepackage[sort,compress]{cite} %% disable if natbib package is activated
+\usepackage[numbers,sort&compress,square]{natbib} %% e.g., [2-5]
+
+
+%%------------------------------------------------------
+%% Configurações de Listings (Blocos de Código)
+%%------------------------------------------------------
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.98,0.98,0.98}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+
+%%------------------------------------------------------
+%% Definitions
+%%------------------------------------------------------
+
+\hyphenation{op-tical net-works semi-conduc-tor}
+
+%% Can use something like this to put references on a page
+%% by themselves when using endfloat and the captionsoff option.
+\ifCLASSOPTIONcaptionsoff
+  \newpage
+\fi
+
+
+%%----------------- Definindo as variáveis com números
+\makeatletter
+%
+\newcommand{\prenome}{\afterassignment\prenome@aux\count0=}
+\newcommand{\prenome@aux}{\csname prenome\the\count0\endcsname}
+%
+\newcommand{\nomedomeio}{\afterassignment\nomedomeio@aux\count0=}
+\newcommand{\nomedomeio@aux}{\csname nomedomeio\the\count0\endcsname}
+%
+\newcommand{\sobrenome}{\afterassignment\sobrenome@aux\count0=}
+\newcommand{\sobrenome@aux}{\csname sobrenome\the\count0\endcsname}
+\makeatother
+%%%%%
+
+%%----------------- Configurações de hyperlinks
+%% Não decorado, sem destaque
+\hypersetup{
+  colorlinks=true,
+  urlcolor=blue,
+  pdfborder={0 0 0},
+}
+
+
+
+
+%%------------------------------------------------------
+%% Configurações
+%%------------------------------------------------------
+
+%%----------------- Título
+\title{Gomoku - Projeto Web UFSC: Implementação de um Jogo Online com FastAPI, React e MongoDB}
+
+\newcommand{\emailautor}               {aleccoelho50@gmail.com}
+\newcommand{\emailautordois}           {email.autor2@grad.ufsc.br} % Placeholder - Altere se necessário
+
+\newcommand{\siglaRevista}             {INE5646}
+\newcommand{\Revista}                  {Universidade Federal de Santa Catarina (UFSC)}
+
+
+
+%%----------------- Autor Principal (a acenturação deverá ser indireta)
+\newcommand{\prenomePrincipal}         {Alec}
+\newcommand{\nomedomeioPrincipal}      {Oliveira}
+\newcommand{\sobrenomePrincipal}       {Coelho}
+
+
+%%----------------- Demais Autores
+%% Segundo autor (a acenturação deverá ser indireta)
+\expandafter\newcommand\csname prenome2\endcsname     {Luan}
+\expandafter\newcommand\csname nomedomeio2\endcsname  {Rodrigo da Silva}
+\expandafter\newcommand\csname sobrenome2\endcsname   {Costa}
+
+
+%% Terceiro autor (a acenturação deverá ser indireta)
+% \expandafter\newcommand\csname prenome3\endcsname     {Cesare}
+% \expandafter\newcommand\csname nomedomeio3\endcsname  {Mansueto Giulio}
+% \expandafter\newcommand\csname sobrenome3\endcsname   {Lattes}
+
+
+%%------------------------------------------------------
+%% Autor(es)
+
+% %%----------------- Apenas um autor
+% \author{\IEEEauthorblockN{\prenomePrincipal~\nomedomeioPrincipal~\sobrenomePrincipal\IEEEauthorrefmark{1}}
+% 
+% \IEEEauthorblockA{\IEEEauthorrefmark{1}Universidade Federal de Santa Catarina (UFSC)}% <-this % stops an unwanted space
+% %%
+% \thanks{\Revista.
+% Correspond\^encia ao autor: \prenomePrincipal~\nomedomeioPrincipal~\sobrenomePrincipal~(email: \emailautor).}}
+
+
+
+%%----------------- Vários Autores
+\author{\IEEEauthorblockN{\prenomePrincipal~\nomedomeioPrincipal~\sobrenomePrincipal\IEEEauthorrefmark{1}, 
+\prenome2~\nomedomeio2~\sobrenome2\IEEEauthorrefmark{1}}
+
+\IEEEauthorblockA{\IEEEauthorrefmark{1}Departamento de Informática e Estatística (INE), 
+Universidade Federal de Santa Catarina (UFSC), Florianópolis, SC, Brasil}
+
+% 
+\thanks{\Revista~(\siglaRevista).
+Correspond\^encia ao autor: \prenomePrincipal~\sobrenomePrincipal~(email: \emailautor) e \prenome2~\sobrenome2~(email: \emailautordois).}}
+
+
+
+%%------------------------------------------------------
+%% Cabeçalho
+\markboth{\MakeUppercase{\Revista}}%% acentuação indireta
+%% Apenas um autor:
+% {\sobrenomePrincipal: \MakeUppercase{\Revista}}
+%% Mais de um autor:
+{\sobrenomePrincipal: \MakeLowercase{\textit{et al.}}: \Revista}
+
+
+%%------------------------------------------------------
+%% Abstract
+\IEEEtitleabstractindextext{
+
+  {\selectlanguage{brazil}
+    \begin{abstract}
+    Este artigo descreve a concepção e implementação de um projeto web completo para a disciplina INE5646 - Programação para Web da UFSC. O projeto consiste em um jogo Gomoku (Five in a Row) funcional, desenvolvido com uma arquitetura de aplicação web moderna. O \textit{backend} foi implementado em Python utilizando o \textit{framework} FastAPI, escolhido por sua alta performance e suporte assíncrono, essencial para comunicação em tempo real. O \textit{frontend} foi desenvolvido em React com TypeScript, proporcionando uma interface de usuário reativa, responsiva e com tipagem segura. O armazenamento de dados, incluindo perfis de usuário, estados de jogo e gravações de partidas, é gerenciado pelo banco de dados NoSQL MongoDB, um requisito obrigatório do projeto. A comunicação em tempo real entre jogadores, como o \textit{chat} e a sincronização de movimentos, é realizada via WebSockets. Funcionalidades avançadas, como \textit{videochat} P2P com WebRTC e gravação de partidas usando FFMPEG, também foram implementadas, demonstrando a integração de múltiplas tecnologias complexas em um sistema coeso.
+    \end{abstract}
+    %%----------------- Keywords
+    \renewcommand\IEEEkeywordsname{Palavras-chave} %% Palavras-chave ao invés de 'Index Terms'
+    \begin{IEEEkeywords}
+    Gomoku, Programação Web, FastAPI, React, TypeScript, MongoDB, WebSocket, WebRTC, FFMPEG, Arquitetura MVC.
+    \end{IEEEkeywords}
+  }
+
+  {\selectlanguage{english}
+    \begin{abstract}
+    This article describes the design and implementation of a complete web project for the INE5646 - Web Programming course at UFSC. The project consists of a functional Gomoku (Five in a Row) game, developed with a modern web application architecture. The backend was implemented in Python using the FastAPI framework, chosen for its high performance and asynchronous support, essential for real-time communication. The frontend was developed in React with TypeScript, providing a reactive, responsive, and type-safe user interface. Data storage, including user profiles, game states, and match recordings, is managed by the NoSQL database MongoDB, a mandatory requirement of the project. Real-time communication between players, such as chat and move synchronization, is handled via WebSockets. Advanced features, including P2P video chat with WebRTC and match recording using FFMPEG, were also implemented, demonstrating the integration of multiple complex technologies into a cohesive system.
+    \end{abstract}
+    %%----------------- Keywords
+    \begin{IEEEkeywords}
+    Gomoku, Web Programming, FastAPI, React, TypeScript, MongoDB, WebSocket, WebRTC, FFMPEG, MVC Architecture.
+    \end{IEEEkeywords}
+  }
+}
+
+
+\begin{document}
+
+
+
+%%------------------------------------------------------
+%% Inserção de informações
+\maketitle
+\IEEEdisplaynontitleabstractindextext
+\IEEEpeerreviewmaketitle
+
+
+%%------------------------------------------------------
+%% Section
+\section{Introdução}
+
+\IEEEPARstart{O}{} projeto web desenvolvido para a disciplina INE5646 - Programação para Web da UFSC teve como objetivo a criação de uma aplicação web completa e funcional, implementando o jogo de estratégia Gomoku, também conhecido como "Cinco em Linha".
+
+\subsection{Motivação}
+A principal motivação do projeto foi aplicar os conceitos e técnicas abordados na disciplina em um cenário prático e complexo. A escolha de um jogo \textit{multiplayer} em tempo real permitiu explorar tecnologias avançadas de \textit{backend} e \textit{frontend}, indo além de uma aplicação CRUD (Create, Read, Update, Delete) padrão. O desafio consistia em construir um sistema robusto, escalável e que integrasse diversas ferramentas exigidas pelo plano de ensino, como o banco de dados MongoDB e o protocolo HTTPS.
+
+\subsection{Problema}
+O problema central do projeto foi desenvolver uma aplicação \textit{full-stack} que suportasse múltiplos modos de jogo (PvP online, PvP local e PvE contra IA), autenticação de usuários, comunicação em tempo real (chat e jogadas) e funcionalidades complexas de mídia, como \textit{videochat} P2P e gravação de partidas. A solução deveria seguir o padrão de projeto MVC (Model-View-Controller), ser responsiva (desktop e mobile) e atender a rigorosos requisitos de segurança e infraestrutura, incluindo o \textit{deploy} obrigatório em um servidor VPS-UFSC.
+
+\subsection{Trabalhos Relacionados}
+(Esta seção deve ser preenchida com a pesquisa de outros projetos ou artigos que implementaram soluções similares, \textit{e.g.}, outros jogos web \textit{multiplayer}, e comparar suas arquiteturas com a escolhida neste trabalho.)
+
+\subsection{Contribuição do Trabalho}
+A principal contribuição deste trabalho é a integração bem-sucedida de um ecossistema de tecnologias modernas para criar uma experiência de usuário complexa e em tempo real. Demonstra-se uma arquitetura desacoplada onde o \textit{backend} (FastAPI) atua como uma API RESTful e um servidor WebSocket, o \textit{frontend} (React) consome esses serviços de forma reativa, e o MongoDB gerencia a persistência de dados. Além disso, o projeto serve como um estudo de caso prático na implementação de funcionalidades avançadas como WebRTC para \textit{videochat} e FFMPEG para gravação e \textit{streaming} de vídeo, ambas gerenciadas através do MongoDB GridFS.
+
+\subsection{Organização do Trabalho}
+Este artigo está organizado da seguinte forma: A Seção \ref{sec:fundamentacao} apresenta a fundamentação teórica sobre as principais tecnologias utilizadas. A Seção \ref{sec:metodologia} detalha os materiais e métodos, incluindo a arquitetura do sistema e o roteiro de instalação. A Seção \ref{sec:resultados} discute os resultados obtidos, a estrutura do projeto, os problemas encontrados e as soluções de segurança. Finalmente, a Seção \ref{sec:conclusao} apresenta as conclusões do trabalho.
+
+
+%%------------------------------------------------------
+%% Section
+\section{Fundamentação Teórica}
+\label{sec:fundamentacao}
+
+Esta seção aborda os conceitos teóricos das principais tecnologias que formam a \textit{stack} do projeto Gomoku.
+
+\subsection{FastAPI}
+FastAPI é um \textit{framework} web Python moderno de alta performance, baseado em Starlette (para a parte assíncrona ASGI) e Pydantic (para validação de dados) \cite{doc:fastapi}. Sua arquitetura permite o desenvolvimento rápido de APIs RESTful e o gerenciamento eficiente de conexões WebSocket, sendo ideal para aplicações que exigem baixa latência e I/O intensivo, como o \textit{backend} deste projeto.
+
+\subsection{React e TypeScript}
+React é uma biblioteca JavaScript para a construção de interfaces de usuário (UI) baseada em componentes \cite{doc:react}. Ele utiliza um \textit{Virtual DOM} para otimizar as atualizações da UI, resultando em uma experiência de usuário fluida. TypeScript é um \textit{superset} do JavaScript que adiciona tipagem estática opcional \cite{doc:typescript}, utilizado no projeto para garantir a manutenibilidade, robustez e escalabilidade do código do \textit{frontend}.
+
+\subsection{MongoDB}
+MongoDB é um banco de dados NoSQL orientado a documentos, que armazena dados em estruturas flexíveis similares a JSON (chamadas BSON) \cite{doc:mongodb}. Foi o banco de dados obrigatório para o projeto e é utilizado para persistir dados de usuários, jogos e placares. O projeto também utiliza o MongoDB GridFS, um mecanismo para armazenar arquivos grandes, como as gravações de vídeo das partidas.
+
+\subsection{WebSocket}
+O protocolo WebSocket fornece um canal de comunicação bidirecional e \textit{full-duplex} sobre uma única conexão TCP. Diferente do ciclo de requisição-resposta do HTTP, o WebSocket mantém uma conexão persistente, permitindo que o servidor envie dados ao cliente proativamente. Esta tecnologia é a base para as funcionalidades em tempo real do projeto, como o chat, o \textit{lobby} e a sincronização dos movimentos no tabuleiro.
+
+\subsection{WebRTC (Web Real-Time Communication)}
+WebRTC é um projeto de código aberto e API que permite a comunicação de áudio, vídeo e dados em tempo real (P2P) diretamente entre navegadores, sem a necessidade de \textit{plugins} intermediários \cite{doc:webrtc}. No projeto, é utilizado para implementar a funcionalidade de \textit{videochat} entre os dois jogadores de uma partida.
+
+\subsection{FFMPEG}
+FFMPEG é uma suíte de \textit{software} livre para manipulação, gravação, conversão e \textit{streaming} de áudio e vídeo \cite{doc:ffmpeg}. Conforme os requisitos do projeto, o FFMPEG é utilizado no \textit{backend} para processar e gravar as partidas no formato WebM, que são subsequentemente armazenadas no MongoDB GridFS.
+
+
+%%------------------------------------------------------
+%% Section
+\section{Materiais e Métodos}
+\label{sec:metodologia}
+
+Esta seção descreve a arquitetura do projeto, as ferramentas utilizadas e o processo de configuração e instalação para replicação do ambiente.
+
+\subsection{Arquitetura da Aplicação}
+A aplicação segue um padrão de projeto próximo ao MVC (Model-View-Controller), desacoplado em dois serviços principais:
+
+\begin{itemize}
+    \item \textbf{Backend (API):} Implementado em FastAPI, serve como o \textit{Controller} e o \textit{Model}. Ele expõe uma API RESTful para gerenciamento de usuários e jogos, e um \textit{endpoint} WebSocket para comunicação em tempo real (chat, lobby, jogadas). Ele se comunica com o banco de dados MongoDB (usando o \textit{driver} assíncrono Motor) para persistir os dados.
+    
+    \item \textbf{Frontend (View):} Implementado em React com TypeScript, é a camada de visualização. Consome a API RESTful do \textit{backend} para operações de dados e se conecta ao WebSocket para atualizações em tempo real. O estado da aplicação é gerenciado localmente nos componentes e através de Contexts do React.
+    
+    \item \textbf{Banco de Dados:} O MongoDB atua como a camada de persistência.
+    
+    \item \textbf{Infraestrutura:} A aplicação é orquestrada utilizando Docker e Docker Compose, facilitando os ambientes de desenvolvimento e produção.
+\end{itemize}
+
+\subsection{Tecnologias, Frameworks e APIs}
+A Tabela \ref{tab:backend-stack} e a Tabela \ref{tab:frontend-stack} resumem as principais tecnologias usadas no \textit{backend} e \textit{frontend}, respectivamente.
+
+\begin{table}[!htbp]
+\renewcommand{\arraystretch}{1.3}
+\caption{Stack Tecnológica do Backend}
+\label{tab:backend-stack}
+\centering
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Tecnologia} & \textbf{Descrição} \\
+\hline
+FastAPI & Framework web assíncrono (ASGI) \\
+Motor & Driver MongoDB assíncrono \\
+Uvicorn & Servidor ASGI \\
+WebSockets & Comunicação em tempo real \\
+python-jose & Autenticação JWT \\
+ffmpeg-python & Wrapper para gravação de vídeo \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[!htbp]
+\renewcommand{\arraystretch}{1.3}
+\caption{Stack Tecnológica do Frontend}
+\label{tab:frontend-stack}
+\centering
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Tecnologia} & \textbf{Descrição} \\
+\hline
+React & Biblioteca de UI \\
+TypeScript & Tipagem estática para JavaScript \\
+Axios & Cliente HTTP (REST) \\
+Socket.io-client & Cliente WebSocket \\
+React Router & Roteamento de páginas \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Softwares e Roteiro de Instalação}
+O projeto é desenhado para ser executado com Docker e Docker Compose, simplificando a configuração do ambiente.
+
+\subsubsection{Pré-requisitos}
+\begin{itemize}
+    \item Docker
+    \item Docker Compose
+    \item Git
+\end{itemize}
+
+\subsubsection{Roteiro de Instalação (Produção)}
+O processo de \textit{deploy} em modo de produção é feito com o Docker Compose, que constrói e orquestra os contêineres do \textit{backend}, \textit{frontend} (servido via Nginx) e MongoDB.
+
+\begin{lstlisting}[language=Bash, caption={Comandos para execução em modo produção}]
+# Clone o repositorio #erro
+git clone https://github.com/Coelho50/Gomoku.git
+cd Gomoku
+
+# Execute em modo producao (com Nginx) #erro
+docker-compose -f docker-compose.yml up -d --profile production
+\end{lstlisting}
+
+\subsubsection{Roteiro de Instalação (Desenvolvimento)}
+O modo de desenvolvimento utiliza o Docker Compose para subir os serviços com \textit{hot-reloading} no \textit{backend} (Uvicorn) e \textit{frontend} (React Scripts), além de expor um painel de administração do MongoDB (Mongo Express).
+
+\begin{lstlisting}[language=Bash, caption={Comandos para execução em modo desenvolvimento}]
+# Execute com MongoDB Admin Interface
+docker-compose --profile debug up
+
+# Portas em Modo Debug:
+# Frontend: http://localhost:9001
+# Backend API: http://localhost:9000
+# MongoDB Admin: http://localhost:8081
+\end{lstlisting}
+
+\subsection{Links do Projeto}
+\begin{itemize}
+    \item \textbf{Repositório GitHub:} \href{https://github.com/Coelho50/Gomoku}{https://github.com/Coelho50/Gomoku}
+    \item \textbf{Link da Aplicação (VPS-UFSC):} \href{https://pw.alec.coelho.vms.ufsc.br}{https://pw.alec.coelho.vms.ufsc.br}
+\end{itemize}
+
+%%------------------------------------------------------
+%% Section
+\section{Resultados}
+\label{sec:resultados}
+
+Esta seção apresenta os resultados da implementação, a estrutura final do projeto, os problemas encontrados durante o desenvolvimento e as soluções de segurança aplicadas.
+
+\subsection{Estrutura do Projeto (MVC)}
+O \textit{backend} foi estruturado seguindo o padrão MVC, adaptado para o FastAPI:
+\begin{itemize}
+    \item \textbf{Models:} Definidos em `backend/models/`, usando Pydantic para validação de dados de API e classes para os modelos do MongoDB.
+    \item \textbf{Views (Templates):} O \textit{backend} é \textit{headless} (sem \textit{view}), sendo o React a camada de visualização desacoplada.
+    \item \textbf{Controllers (Rotas):} Definidos em `backend/routers/`. Cada arquivo (ex: `auth.py`, `games.py`, `websocket.py`) agrupa a lógica de negócios para um conjunto de \textit{endpoints}, recebendo requisições, interagindo com os serviços e retornando respostas JSON.
+    \item \textbf{Services:} A lógica de negócios complexa (ex: cálculo de ELO, gravação FFMPEG) foi abstraída em \verb|backend/services/|, como \verb|ranking_service.py| e \verb|ffmpeg_service.py|.
+\end{itemize}
+
+A Figura \ref{fig:estrutura-backend} (placeholder) ilustra a árvore de diretórios principal do \textit{backend}.
+
+\begin{figure}[!htbp]
+\centering
+% \includegraphics[width=1.0\columnwidth]{figs/estrutura-backend.png}
+\fbox{Placeholder para Figura: Árvore de Diretórios do Backend}
+\caption{Estrutura de diretórios do serviço de backend.}
+\label{fig:estrutura-backend}
+\end{figure}
+
+\subsection{Funcionalidades Implementadas}
+O projeto implementou com sucesso todas as funcionalidades avançadas requisitadas:
+\begin{itemize}
+    \item \textbf{Gravação com FFMPEG:} O \verb|`ffmpeg_service.py`| gerencia a gravação de partidas, com APIs para iniciar, parar e listar gravações. Os vídeos são armazenados no MongoDB GridFS e podem ser acessados via \textit{streaming} por uma URL.
+    \item \textbf{Videochat com WebRTC:} O \verb|`webrtc_service.py`| atua como servidor de sinalização (via WebSocket) para estabelecer conexões P2P entre os jogadores, incluindo configuração de servidores STUN.
+    \item \textbf{Sistema de Ranking ELO:} O \verb|`ranking_service.py`| calcula o ELO dos jogadores após cada partida online (Fator \verb|K=32|), armazena estatísticas e fornece \textit{endpoints} para um \textit{leaderboard} global.
+    \item \textbf{Administração CRUD:} O `routers/admin.py` implementa um conjunto completo de rotas protegidas para gerenciamento de usuários, jogos e configurações do sistema.
+    \item \textbf{Design Responsivo:} Conforme detalhado em \verb|`DESIGN_IMPLEMENTATION_SUMMARY.md`|, foi implementado um sistema de design responsivo completo, garantindo a usabilidade em dispositivos \textit{mobile}, \textit{tablet} e \textit{desktop}.
+\end{itemize}
+
+As Figuras \ref{fig:tela-lobby} e \ref{fig:tela-jogo} (placeholders) mostram \textit{screenshots} da aplicação final.
+
+\begin{figure}[!htbp]
+\centering
+% \includegraphics[width=1.0\columnwidth]{figs/tela-lobby.png}
+\fbox{Placeholder para Screenshot: Tela do Lobby}
+\caption{Interface do lobby de jogos, mostrando a seleção de modo de jogo e a lista de jogadores online.}
+\label{fig:tela-lobby}
+\end{figure}
+
+\begin{figure}[!htbp]
+\centering
+% \includegraphics[width=1.0\columnwidth]{figs/tela-jogo.png}
+\fbox{Placeholder para Screenshot: Tela de Jogo}
+\caption{Interface da partida, exibindo o tabuleiro, o chat em tempo real e o componente de videochat.}
+\label{fig:tela-jogo}
+\end{figure}
+
+
+\subsection{Problemas Encontrados e Soluções}
+Durante o desenvolvimento, diversos desafios técnicos surgiram:
+
+\begin{itemize}
+    \item \textbf{Instabilidade de Conexão WebSocket:} O \textit{lobby} desconectava imediatamente após a conexão. A causa raiz era que o \textit{backend} aceitava a nova conexão \textit{antes} de fechar a conexão antiga do mesmo usuário. A correção envolveu reordenar o fluxo para: 1) Autenticar token, 2) Fechar conexão antiga, 3) Aceitar nova conexão.
+    
+    \item \textbf{Matchmaking com Reconexão:} Jogadores desapareciam da fila ao reconectar. A função \verb|`disconnect_from_lobby()`| removia o usuário de \verb|`online_players`|. A solução foi modificar a lógica para, durante uma reconexão, apenas remover o \textit{socket} antigo, mantendo o usuário na lista de jogadores online.
+    
+    \item \textbf{Modal de Vitória Exibido como Erro:} Um bug visual crítico fazia com que a tela de vitória fosse renderizada como um modal de erro. A correção foi feita no `Game.tsx`, garantindo que o estado `isGameOver` com um vencedor disparasse o componente `GameSuccessModal` ao invés de um modal de erro genérico.
+\end{itemize}
+
+
+\subsection{Vulnerabilidades e Soluções de Segurança}
+A segurança foi um pilar do projeto, conforme os requisitos da disciplina:
+\begin{itemize}
+    \item \textbf{Autenticação:} Implementada com JSON Web Tokens (JWT) (RFC 7519), utilizando \textit{tokens} de acesso (curta duração) e \textit{refresh tokens} (longa duração) armazenados de forma segura.
+    \item \textbf{HTTPS:} O \textit{deploy} em produção no VPS-UFSC utilizará Nginx como \textit{proxy} reverso com certificados SSL/TLS (Let's Encrypt), garantindo a criptografia do tráfego.
+    \item \textbf{CORS:} O \textit{backend} FastAPI é configurado para permitir requisições apenas das origens do \textit{frontend} definidas em variáveis de ambiente.
+    \item \textbf{Prevenção de Injeção:} O uso de um \textit{driver} moderno (Motor) para o MongoDB mitiga riscos de NoSQL Injection, pois as consultas são parametrizadas. A validação de entrada é feita pelo Pydantic.
+    \item \textbf{XSS/CSRF:} Medidas de sanitização de \textit{inputs} no \textit{frontend} (especialmente em campos de chat) e \textit{headers} de segurança (via Nginx/Helmet.js) foram planejadas para prevenir XSS e CSRF.
+\end{itemize}
+
+
+%%------------------------------------------------------
+%% Section
+\section{Conclusão}
+\label{sec:conclusao}
+O desenvolvimento do projeto Gomoku Web atingiu seus objetivos principais, entregando uma aplicação \textit{full-stack} robusta que não apenas cumpre os requisitos básicos do jogo, mas também implementa um conjunto de funcionalidades avançadas e complexas.
+
+A arquitetura escolhida, baseada em FastAPI para o \textit{backend} e React para o \textit{frontend}, provou ser altamente eficaz. O FastAPI gerenciou com excelência as operações assíncronas de WebSockets e as requisições da API, enquanto o React forneceu uma interface de usuário fluida e responsiva. A integração de WebRTC, FFMPEG e um sistema de ranking ELO demonstrou a capacidade de estender a aplicação com serviços de nível profissional.
+
+Os desafios encontrados, especialmente na estabilidade da comunicação em tempo real e no \textit{design} responsivo, foram superados e resultaram em um sistema mais resiliente e polido. Conforme o relatório \verb|`FUNCIONALIDADES_IMPLEMENTADAS.md`|, o \textit{backend} encontra-se 100\% completo em termos de APIs, enquanto o \textit{frontend} está em fase avançada de integração.
+
+Como próximos passos, restam o \textit{deploy} final no servidor VPS-UFSC com configuração HTTPS e a conclusão da integração das páginas de \textit{frontend} pendentes (Ranking, Admin). O projeto conclui-se como um sucesso, servindo como um portfólio abrangente das técnicas de programação web modernas.
+
+
+%%------------------------------------------------------
+%% References (Option 1): extern file
+%% Edit with JabRef, for instance
+% \bibliographystyle{IEEEtran} %% Estilo da referência
+% \bibliography{references}    %% Caminho do arquivo (sem extensão)
+
+
+
+%%------------------------------------------------------
+%% References (Option 2): incorporeted
+
+\begin{thebibliography}{10} 
+
+% Referências da Documentação do Projeto
+\bibitem{projeto_ufsc}
+W. B. da Silva, "Instruções para o PW," \emph{Moodle UFSC - INE5646}, 2025. Acessado em: 05/11/2025. [Disponível em: Gomoku/docs/projeto.md]
+
+\bibitem{func_impl}
+A. O. Coelho e L. R. da S. Costa, "FUNCIONALIDADES IMPLEMENTADAS - Gomoku Project," \emph{Documentação do Projeto}, 2025. [Disponível em: \verb|Gomoku/FUNCIONALIDADES_IMPLEMENTADAS.md|]
+
+\bibitem{readme}
+A. O. Coelho e L. R. da S. Costa, "Gomoku - Projeto Web UFSC," \emph{Documentação do Projeto (README.md)}, 2025. [Disponível em: Gomoku/README.md]
+
+\bibitem{docker}
+A. O. Coelho e L. R. da S. Costa, "docker-compose.yml," \emph{Configuração do Projeto}, 2025. [Disponível em: Gomoku/docker-compose.yml]
+
+\bibitem{reqs}
+A. O. Coelho e L. R. da S. Costa, "requirements.txt," \emph{Dependências do Backend}, 2025. [Disponível em: Gomoku/backend/requirements.txt]
+
+\bibitem{package}
+A. O. Coelho e L. R. da S. Costa, "package.json," \emph{Dependências do Frontend}, 2025. [Disponível em: Gomoku/frontend/package.json]
+
+\bibitem{design}
+A. O. Coelho e L. R. da S. Costa, "Resumo de Implementação - Design System Responsivo," \emph{Documentação do Projeto}, 2025. [Disponível em: \verb|Gomoku/DESIGN_IMPLEMENTATION_SUMMARY.md|]
+
+
+% Referências da Documentação Oficial (conforme solicitado)
+\bibitem{doc:fastapi}
+\emph{FastAPI}, Tiangolo. [Online]. Disponível: \url{https://fastapi.tiangolo.com/}
+
+\bibitem{doc:react}
+\emph{React}, Meta. [Online]. Disponível: \url{https://react.dev/}
+
+\bibitem{doc:typescript}
+\emph{TypeScript}, Microsoft. [Online]. Disponível: \url{https://www.typescriptlang.org/}
+
+\bibitem{doc:mongodb}
+\emph{MongoDB Documentation}, MongoDB Inc. [Online]. Disponível: \url{https://www.mongodb.com/docs/}
+
+\bibitem{doc:webrtc}
+\emph{WebRTC}, Google. [Online]. Disponível: \url{https://webrtc.org/}
+
+\bibitem{doc:ffmpeg}
+\emph{FFMPEG}, FFMPEG.org. [Online]. Disponível: \url{https://ffmpeg.org/}
+
+
+\end{thebibliography}
+
+
+
+%%------------------------------------------------------
+%% Appedix (if necessary)
+\appendices
+
+%%----------------- Apêndice A
+\section{Código Fonte de Configuração}
+Apresentam-se a seguir os principais arquivos de configuração do projeto, que definem a infraestrutura (Docker), as dependências do \textit{backend} e as dependências do \textit{frontend}.
+
+\subsection{docker-compose.yml}
+%%\lstinputlisting[language=yaml, caption={Arquivo de orquestração do Docker Compose (docker-compose.yml)}, label={lst:docker}]{"Gomoku/docker-compose.yml"} #erro
+
+%%\subsection{requirements.txt (Backend)} #erro soh descomentar
+%%\lstinputlisting[language=Text, caption={Dependências do Backend (backend/requirements.txt)}, label={lst:reqs}]{"Gomoku/backend/requirements.txt"}#erro
+
+\subsection{package.json (Frontend)}
+%%\lstinputlisting[language=JSON, caption={Dependências do Frontend (frontend/package.json)}, label={lst:package}]{"Gomoku/frontend/package.json"}
+
+
+\end{document}
