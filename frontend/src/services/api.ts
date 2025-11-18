@@ -139,6 +139,7 @@ export interface RegisterRequest {
 function mapBackendUserToFrontend(backendUser: LoginResponse['user']): User {
   return {
     id: backendUser.id,
+    username: backendUser.username,
     name: backendUser.profile.name,
     email: backendUser.email,
     avatar: backendUser.profile.avatar_url,
