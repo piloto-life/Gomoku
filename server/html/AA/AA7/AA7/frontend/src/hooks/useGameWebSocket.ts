@@ -82,7 +82,7 @@ export const useGameWebSocket = ({
       shouldReconnectRef.current = true;
 
       // Create WebSocket connection with authentication
-      const wsBaseUrl = process.env.REACT_APP_WS_URL || 'ws://localhost:8000';
+      const wsBaseUrl = process.env.REACT_APP_WS_URL || 'ws://150.162.244.21:8000';
       const wsUrl = `${wsBaseUrl}/ws/game/${gameId}?token=${encodeURIComponent(token)}`;
       
       logger.websocketConnect(wsUrl);

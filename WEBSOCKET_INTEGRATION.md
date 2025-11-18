@@ -8,7 +8,7 @@ O backend foi revisado para usar protocolo WebSocket durante as partidas de Gomo
 
 ### Conexão ao Jogo
 ```
-ws://localhost:8000/ws/game/{game_id}?token={jwt_token}
+ws://150.162.244.21:8000/ws/game/{game_id}?token={jwt_token}
 ```
 
 - **Parâmetros:**

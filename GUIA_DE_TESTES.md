@@ -23,7 +23,7 @@ python app.py
 
 3. **Verificar Swagger UI:**
 ```
-http://localhost:8000/docs
+http://150.162.244.21:8000/docs
 ```
 
 ### Frontend
@@ -52,7 +52,7 @@ http://localhost:3000
 
 **1. Iniciar gravação via API:**
 ```bash
-curl -X POST http://localhost:8000/api/recordings/start \
+curl -X POST http://150.162.244.21:8000/api/recordings/start \
   -H "Authorization: Bearer SEU_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"game_id": "test_game_123", "width": 1920, "height": 1080}'
@@ -60,25 +60,25 @@ curl -X POST http://localhost:8000/api/recordings/start \
 
 **2. Verificar status:**
 ```bash
-curl http://localhost:8000/api/recordings/status/test_game_123 \
+curl http://150.162.244.21:8000/api/recordings/status/test_game_123 \
   -H "Authorization: Bearer SEU_TOKEN"
 ```
 
 **3. Parar gravação:**
 ```bash
-curl -X POST http://localhost:8000/api/recordings/stop/test_game_123 \
+curl -X POST http://150.162.244.21:8000/api/recordings/stop/test_game_123 \
   -H "Authorization: Bearer SEU_TOKEN"
 ```
 
 **4. Listar gravações:**
 ```bash
-curl http://localhost:8000/api/recordings/list \
+curl http://150.162.244.21:8000/api/recordings/list \
   -H "Authorization: Bearer SEU_TOKEN"
 ```
 
 **5. Ver vídeo no navegador:**
 ```
-http://localhost:8000/api/recordings/video/VIDEO_ID_AQUI
+http://150.162.244.21:8000/api/recordings/video/VIDEO_ID_AQUI
 ```
 
 ### Frontend
@@ -119,7 +119,7 @@ Upload concluído: 507f1f77bcf86cd799439011
 
 **1. Obter configuração STUN/TURN:**
 ```bash
-curl http://localhost:8000/api/webrtc/config
+curl http://150.162.244.21:8000/api/webrtc/config
 ```
 
 **Resposta esperada:**
@@ -134,7 +134,7 @@ curl http://localhost:8000/api/webrtc/config
 
 **2. Iniciar chamada:**
 ```bash
-curl -X POST http://localhost:8000/api/webrtc/call/initiate \
+curl -X POST http://150.162.244.21:8000/api/webrtc/call/initiate \
   -H "Authorization: Bearer SEU_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"callee_id": "USER_ID_OPONENTE", "room_id": "game_123"}'
@@ -142,7 +142,7 @@ curl -X POST http://localhost:8000/api/webrtc/call/initiate \
 
 **3. Aceitar chamada:**
 ```bash
-curl -X POST http://localhost:8000/api/webrtc/call/accept \
+curl -X POST http://150.162.244.21:8000/api/webrtc/call/accept \
   -H "Authorization: Bearer SEU_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"room_id": "game_123"}'
@@ -150,7 +150,7 @@ curl -X POST http://localhost:8000/api/webrtc/call/accept \
 
 **4. Verificar chamadas ativas:**
 ```bash
-curl http://localhost:8000/api/webrtc/call/active \
+curl http://150.162.244.21:8000/api/webrtc/call/active \
   -H "Authorization: Bearer SEU_TOKEN"
 ```
 
@@ -207,7 +207,7 @@ Peers conectados!
 
 **1. Ver leaderboard:**
 ```bash
-curl http://localhost:8000/api/ranking/leaderboard?limit=10
+curl http://150.162.244.21:8000/api/ranking/leaderboard?limit=10
 ```
 
 **Resposta esperada:**
@@ -231,24 +231,24 @@ curl http://localhost:8000/api/ranking/leaderboard?limit=10
 
 **2. Ver minhas estatísticas:**
 ```bash
-curl http://localhost:8000/api/ranking/me \
+curl http://150.162.244.21:8000/api/ranking/me \
   -H "Authorization: Bearer SEU_TOKEN"
 ```
 
 **3. Ver histórico de partidas:**
 ```bash
-curl http://localhost:8000/api/ranking/history?limit=20 \
+curl http://150.162.244.21:8000/api/ranking/history?limit=20 \
   -H "Authorization: Bearer SEU_TOKEN"
 ```
 
 **4. Ver gráfico de ELO:**
 ```bash
-curl http://localhost:8000/api/ranking/history/elo/USER_ID?days=30
+curl http://150.162.244.21:8000/api/ranking/history/elo/USER_ID?days=30
 ```
 
 **5. Estatísticas globais:**
 ```bash
-curl http://localhost:8000/api/ranking/stats/global
+curl http://150.162.244.21:8000/api/ranking/stats/global
 ```
 
 **Resposta esperada:**
@@ -282,7 +282,7 @@ Ranking atualizado - User1: 1200 -> 1216 (+16), User2: 1200 -> 1184 (-16)
 
 **3. Buscar novamente o ranking:**
 ```bash
-curl http://localhost:8000/api/ranking/me \
+curl http://150.162.244.21:8000/api/ranking/me \
   -H "Authorization: Bearer USER1_TOKEN"
 ```
 
@@ -314,7 +314,7 @@ db.users.updateOne(
 
 **1. Dashboard:**
 ```bash
-curl http://localhost:8000/api/admin/stats/dashboard \
+curl http://150.162.244.21:8000/api/admin/stats/dashboard \
   -H "Authorization: Bearer ADMIN_TOKEN"
 ```
 
@@ -342,19 +342,19 @@ curl http://localhost:8000/api/admin/stats/dashboard \
 
 **2. Listar usuários:**
 ```bash
-curl "http://localhost:8000/api/admin/users?page=1&per_page=10" \
+curl "http://150.162.244.21:8000/api/admin/users?page=1&per_page=10" \
   -H "Authorization: Bearer ADMIN_TOKEN"
 ```
 
 **3. Buscar usuário:**
 ```bash
-curl "http://localhost:8000/api/admin/users?search=player" \
+curl "http://150.162.244.21:8000/api/admin/users?search=player" \
   -H "Authorization: Bearer ADMIN_TOKEN"
 ```
 
 **4. Editar usuário:**
 ```bash
-curl -X PUT http://localhost:8000/api/admin/users/USER_ID \
+curl -X PUT http://150.162.244.21:8000/api/admin/users/USER_ID \
   -H "Authorization: Bearer ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"is_admin": true}'
@@ -362,7 +362,7 @@ curl -X PUT http://localhost:8000/api/admin/users/USER_ID \
 
 **5. Banir usuário:**
 ```bash
-curl -X POST http://localhost:8000/api/admin/users/USER_ID/ban \
+curl -X POST http://150.162.244.21:8000/api/admin/users/USER_ID/ban \
   -H "Authorization: Bearer ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"reason": "Violação de regras", "duration_hours": 24}'
@@ -370,7 +370,7 @@ curl -X POST http://localhost:8000/api/admin/users/USER_ID/ban \
 
 **6. Upload de avatar:**
 ```bash
-curl -X POST http://localhost:8000/api/admin/avatars \
+curl -X POST http://150.162.244.21:8000/api/admin/avatars \
   -H "Authorization: Bearer ADMIN_TOKEN" \
   -F "name=avatar_novo" \
   -F "file=@/path/to/image.png"
@@ -378,7 +378,7 @@ curl -X POST http://localhost:8000/api/admin/avatars \
 
 **7. Atualizar configurações:**
 ```bash
-curl -X PUT http://localhost:8000/api/admin/config \
+curl -X PUT http://150.162.244.21:8000/api/admin/config \
   -H "Authorization: Bearer ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"max_video_size_mb": 1000, "maintenance_mode": false}'
@@ -392,7 +392,7 @@ curl -X PUT http://localhost:8000/api/admin/config \
 
 **1. Listar vídeos:**
 ```bash
-curl http://localhost:8000/api/recordings/list \
+curl http://150.162.244.21:8000/api/recordings/list \
   -H "Authorization: Bearer SEU_TOKEN"
 ```
 
@@ -413,7 +413,7 @@ curl http://localhost:8000/api/recordings/list \
 
 **2. Compartilhar URL:**
 ```
-http://localhost:8000/api/recordings/video/507f1f77bcf86cd799439011
+http://150.162.244.21:8000/api/recordings/video/507f1f77bcf86cd799439011
 ```
 
 **3. Testar no navegador:**
@@ -423,7 +423,7 @@ http://localhost:8000/api/recordings/video/507f1f77bcf86cd799439011
 
 **4. Testar download:**
 ```bash
-curl http://localhost:8000/api/recordings/video/507f1f77bcf86cd799439011 \
+curl http://150.162.244.21:8000/api/recordings/video/507f1f77bcf86cd799439011 \
   --output game_replay.webm
 ```
 

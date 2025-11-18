@@ -313,7 +313,7 @@ server {
 
     # Backend API
     location /api/ {
-        proxy_pass http://localhost:8000/;
+        proxy_pass http://150.162.244.21:8000/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -326,7 +326,7 @@ server {
 
     # WebSocket
     location /ws/ {
-        proxy_pass http://localhost:8000/ws/;
+        proxy_pass http://150.162.244.21:8000/ws/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -390,7 +390,7 @@ sudo certbot renew --dry-run
 
 ```bash
 # Backend rodando?
-curl http://localhost:8000/docs
+curl http://150.162.244.21:8000/docs
 
 # Nginx rodando?
 sudo systemctl status nginx
@@ -550,7 +550,7 @@ sudo nginx -t
 sudo journalctl -u gomoku-backend | grep -i websocket
 
 # Testar WebSocket local
-wscat -c ws://localhost:8000/ws/lobby
+wscat -c ws://150.162.244.21:8000/ws/lobby
 ```
 
 ---

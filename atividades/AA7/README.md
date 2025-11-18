@@ -173,8 +173,8 @@ docker-compose up mongodb
 
 ### **4. Acesso**
 - Frontend: http://localhost:3000
-- Backend API: http://localhost:8000
-- Documentação API: http://localhost:8000/docs
+- Backend API: http://150.162.244.21:8000
+- Documentação API: http://150.162.244.21:8000/docs
 
 ## 📊 Funcionalidades Avançadas
 

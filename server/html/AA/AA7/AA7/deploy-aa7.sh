@@ -49,7 +49,7 @@ sleep 5
 
 # Verificar se backend está respondendo
 echo "🔍 Verificando backend..."
-if curl -f http://localhost:8000/docs > /dev/null 2>&1; then
+if curl -f http://150.162.244.21:8000/docs > /dev/null 2>&1; then
     echo "✅ Backend está respondendo"
 else
     echo "⚠️  Backend pode estar ainda inicializando..."
@@ -64,8 +64,8 @@ echo "🎯 Deployment concluído!"
 echo ""
 echo "📱 Acesso à aplicação:"
 echo "   Frontend: http://localhost:3000"
-echo "   Backend API: http://localhost:8000"
-echo "   Documentação API: http://localhost:8000/docs"
+echo "   Backend API: http://150.162.244.21:8000"
+echo "   Documentação API: http://150.162.244.21:8000/docs"
 echo ""
 echo "🎮 Funcionalidades disponíveis:"
 echo "   ✅ Jogo PvP (Jogador vs Jogador)"

@@ -9,8 +9,8 @@ import json
 import requests
 
 # Configurações
-BASE_URL = "http://localhost:8000"
-WS_URL = "ws://localhost:8000"
+BASE_URL = "http://150.162.244.21:8000"
+WS_URL = "ws://150.162.244.21:8000"
 
 async def test_websocket_game():
     print("🔄 Iniciando teste do WebSocket de jogos...")

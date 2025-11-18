@@ -80,7 +80,7 @@
 
 ### **2. Acesso à Aplicação**
 - **Frontend**: http://localhost:3000
-- **API Docs**: http://localhost:8000/docs
+- **API Docs**: http://150.162.244.21:8000/docs
 - **MongoDB**: localhost:27017
 
 ### **3. Fluxo de Demonstração**

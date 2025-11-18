@@ -33,7 +33,7 @@ dev:
 	@docker-compose up -d
 	@echo "✅ Services started!"
 	@echo "Frontend: http://localhost:3000"
-	@echo "Backend: http://localhost:8000"
+	@echo "Backend: http://150.162.244.21:8000"
 
 # Stop all services
 stop:

@@ -98,7 +98,7 @@ const Lobby: React.FC = () => {
         return;
       }
 
-  const wsBaseUrl = process.env.REACT_APP_WS_URL || 'ws://localhost:8000';
+  const wsBaseUrl = process.env.REACT_APP_WS_URL || 'ws://150.162.244.21:8000';
   const wsUrl = `${wsBaseUrl}/ws/lobby?token=${encodeURIComponent(token)}`;
       
       logger.websocketConnect(wsUrl);

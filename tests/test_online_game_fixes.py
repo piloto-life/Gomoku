@@ -58,17 +58,17 @@ class TestOnlineGameCreationFixes(unittest.TestCase):
         
         def get_websocket_url(env_var):
             """Simulate WebSocket URL construction."""
-            base_url = env_var or 'ws://localhost:8000'
+            base_url = env_var or 'ws://150.162.244.21:8000'
             return f"{base_url}/ws/lobby"
         
         # Test with environment variable
-        correct_url = get_websocket_url('ws://localhost:8000')
-        self.assertEqual(correct_url, 'ws://localhost:8000/ws/lobby')
+        correct_url = get_websocket_url('ws://150.162.244.21:8000')
+        self.assertEqual(correct_url, 'ws://150.162.244.21:8000/ws/lobby')
         print(f"      ✅ Correct URL with env var: {correct_url}")
         
         # Test with default fallback
         default_url = get_websocket_url(None)
-        self.assertEqual(default_url, 'ws://localhost:8000/ws/lobby')
+        self.assertEqual(default_url, 'ws://150.162.244.21:8000/ws/lobby')
         print(f"      ✅ Correct URL with default: {default_url}")
         
         # Ensure it's NOT using the old incorrect port
@@ -340,8 +340,8 @@ class TestOnlineGameCreationFixes(unittest.TestCase):
         def load_env_config():
             """Simulate loading environment configuration."""
             return {
-                'REACT_APP_API_URL': 'http://localhost:8000',
-                'REACT_APP_WS_URL': 'ws://localhost:8000',
+                'REACT_APP_API_URL': 'http://150.162.244.21:8000',
+                'REACT_APP_WS_URL': 'ws://150.162.244.21:8000',
                 'REACT_APP_ENV': 'development',
                 'REACT_APP_DEBUG': 'true'
             }
@@ -349,12 +349,12 @@ class TestOnlineGameCreationFixes(unittest.TestCase):
         config = load_env_config()
         
         # Validate API URL
-        self.assertEqual(config['REACT_APP_API_URL'], 'http://localhost:8000')
+        self.assertEqual(config['REACT_APP_API_URL'], 'http://150.162.244.21:8000')
         self.assertNotIn('3000', config['REACT_APP_API_URL'])
         print(f"      ✅ API URL configured correctly: {config['REACT_APP_API_URL']}")
         
         # Validate WebSocket URL
-        self.assertEqual(config['REACT_APP_WS_URL'], 'ws://localhost:8000')
+        self.assertEqual(config['REACT_APP_WS_URL'], 'ws://150.162.244.21:8000')
         self.assertNotIn('3000', config['REACT_APP_WS_URL'])
         print(f"      ✅ WebSocket URL configured correctly: {config['REACT_APP_WS_URL']}")
         

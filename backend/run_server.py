@@ -8,8 +8,8 @@ from pathlib import Path
 
 if __name__ == "__main__":
     print("🚀 Starting Gomoku Backend Server...")
-    print("Backend will be available at: http://localhost:8000")
-    print("API Documentation at: http://localhost:8000/docs")
+    print("Backend will be available at: http://150.162.244.21:8000")
+    print("API Documentation at: http://150.162.244.21:8000/docs")
     print("Press Ctrl+C to stop the server")
     print()
 

@@ -44,8 +44,8 @@ A comprehensive logging system has been implemented in the Gomoku frontend to tr
 
 ### Environment Variables (`.env`)
 ```env
-REACT_APP_API_URL=http://localhost:8000
-REACT_APP_WS_URL=ws://localhost:8000
+REACT_APP_API_URL=http://150.162.244.21:8000
+REACT_APP_WS_URL=ws://150.162.244.21:8000
 REACT_APP_LOG_LEVEL=DEBUG  # DEBUG, INFO, WARN, ERROR
 ```
 

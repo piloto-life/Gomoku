@@ -9,7 +9,7 @@ interface ExtendedAxiosRequestConfig extends InternalAxiosRequestConfig {
   };
 }
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://150.162.244.21:8000';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

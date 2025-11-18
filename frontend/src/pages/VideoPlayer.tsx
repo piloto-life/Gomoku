@@ -35,7 +35,7 @@ const VideoPlayer: React.FC = () => {
         ? `/api/recordings/user/${user?.id}`
         : '/api/recordings/list';
       
-      const response = await fetch(`http://localhost:8000${endpoint}`, {
+      const response = await fetch(`http://150.162.244.21:8000${endpoint}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -87,7 +87,7 @@ const VideoPlayer: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8000/api/recordings/${video.id}`, {
+      const response = await fetch(`http://150.162.244.21:8000/api/recordings/${video.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
