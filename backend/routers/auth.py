@@ -85,6 +85,38 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     
     return UserPublic(**user)
 
+async def get_current_user_ws(token: str):
+    """Versão para WebSocket - recebe token diretamente"""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    users_collection = await get_collection("users")
+    # Convert string to ObjectId for MongoDB query
+    from bson import ObjectId
+    try:
+        user = await users_collection.find_one({"_id": ObjectId(user_id)})
+    except Exception:
+        raise credentials_exception
+    
+    if user is None:
+        raise credentials_exception
+    
+    # Convert to UserPublic for safe return
+    user['id'] = str(user['_id'])
+    del user['_id']
+    del user['password_hash']  # Remove sensitive data
+    
+    return UserPublic(**user)
+
 @router.post("/register", response_model=Token)
 async def register(request: RegisterRequest):
     users_collection = await get_collection("users")
