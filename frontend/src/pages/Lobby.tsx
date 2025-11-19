@@ -544,37 +544,6 @@ const Lobby: React.FC = () => {
             onRecordingError={(error) => console.error('Recording error:', error)}
           />
 
-          <div className="online-players-list">
-            <h3>Jogadores Online</h3>
-            {isLoading ? (
-              <p>Carregando...</p>
-            ) : error ? (
-              <p className="error-message">{error}</p>
-            ) : (
-              <ul className="online-players-ul">
-                {onlinePlayers.length === 0 ? (
-                  <li className="empty-online-player">Nenhum jogador online</li>
-                ) : (
-                  onlinePlayers.map((player) => (
-                    <li key={player.id} className="online-player-item">
-                      {player.avatar ? (
-                        <img src={player.avatar} alt="Avatar" className="online-player-avatar" />
-                      ) : (
-                        <span className="online-player-avatar-placeholder">
-                          <i className="fas fa-user-circle"></i>
-                        </span>
-                      )}
-                      <span className="online-player-name">{player.name}</span>
-                      {typeof player.rating === 'number' && (
-                        <span className="online-player-rating">({player.rating})</span>
-                      )}
-                    </li>
-                  ))
-                )}
-              </ul>
-            )}
-          </div>
-
           <ActiveGamesList 
             games={activeGames} 
             onSpectate={(gameId) => navigate(`/game/${gameId}?spectate=true`)} 
