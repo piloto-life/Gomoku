@@ -121,3 +121,12 @@ temp/
 *.pem
 *.key
 *.crt
+
+node_modules/
+frontend/node_modules/
+backend/venv/
+backend/__pycache__/
+.cache/
+dist/
+frontend/build/
+server/
