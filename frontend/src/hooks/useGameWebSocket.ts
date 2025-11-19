@@ -33,7 +33,7 @@ export const useGameWebSocket = ({
   onGameEnd,
   onError
 }: UseGameWebSocketProps) => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const ws = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -131,8 +131,8 @@ export const useGameWebSocket = ({
               break;
 
             case 'chat_message':
-              logger.debug('WEBSOCKET', 'Received chat message', { gameId, data: message.data });
-              h.onChatMessage && h.onChatMessage(message.data);
+              logger.debug('WEBSOCKET', 'Received chat message', { gameId, message });
+              h.onChatMessage && h.onChatMessage(message);
               break;
 
             case 'player_disconnected':
@@ -259,16 +259,14 @@ export const useGameWebSocket = ({
     if (ws.current?.readyState === WebSocket.OPEN) {
       const chatMessage = {
         type: 'chat',
-        message
+        message,
+        username: user?.name || user?.username || 'Jogador' // Envia o nome para facilitar
       };
-      logger.websocketMessage('SEND', 'chat', { gameId, message });
       ws.current.send(JSON.stringify(chatMessage));
       return true;
-    } else {
-      logger.warn('WEBSOCKET', 'Cannot send chat message - WebSocket not connected', { gameId, message });
-      return false;
     }
-  }, [gameId]);
+    return false;
+  }, [gameId, user]);
 
   const sendPing = useCallback(() => {
     if (ws.current?.readyState === WebSocket.OPEN) {

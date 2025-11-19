@@ -139,11 +139,19 @@ async def websocket_game_endpoint(websocket: WebSocket, game_id: str, token: str
             if user_id:
                 message_data["user_id"] = user_id
             
-            if message_data.get("type") == "chat":
-                await manager.broadcast_to_room(json.dumps(message_data), game_id)
-            elif message_data.get("type") == "move":
-                await manager.broadcast_to_room(json.dumps(message_data), game_id, exclude_websocket=websocket)
+            msg_type = message_data.get("type")
 
+            if msg_type == "chat":
+                message_data["type"] = "chat_message"
+                message_data["timestamp"] = datetime.utcnow().isoformat()
+                if "username" not in message_data and user_id:
+                     pass 
+                
+                await manager.broadcast_to_room(json.dumps(message_data), game_id)
+
+            elif msg_type == "move":
+                await manager.broadcast_to_room(json.dumps(message_data), game_id, exclude_websocket=websocket)
+                
     except WebSocketDisconnect:
         manager.disconnect(websocket, game_id, user_id)
 

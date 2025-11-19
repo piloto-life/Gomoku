@@ -1,119 +1,99 @@
-import React, { useState } from 'react';
-import { ChatMessage } from '../types';
-import { useGame } from '../contexts/GameContext';
-import PlayerAvatar from './PlayerAvatar';
+import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { useGame } from '../contexts/GameWebSocketContext';
+import './UIComponents.css';
 
 interface GameChatProps {
-  gameId: string;
+  gameId?: string;
 }
 
 const GameChat: React.FC<GameChatProps> = ({ gameId }) => {
-  const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      userId: 'system',
-      username: 'Sistema',
-      message: 'Bem-vindos ao jogo!',
-      timestamp: new Date(),
-      type: 'game',
-    },
-    {
-      id: '2',
-      userId: '1',
-      username: 'Player 1',
-      message: 'Boa sorte!',
-      timestamp: new Date(),
-      type: 'game',
-    },
-  ]);
+  const { user } = useAuth();
+  const { chatMessages, sendChatMessage, isConnected } = useGame();
+  const [newMessage, setNewMessage] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const handleSendMessage = () => {
-    if (message.trim() === '') return;
+  // Rola para baixo sempre que chega uma nova mensagem
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
 
-    const newMessage: ChatMessage = {
-      id: Date.now().toString(),
-      userId: 'current-user', // TODO: Get from auth context
-      username: 'Você',
-      message: message.trim(),
-      timestamp: new Date(),
-      type: 'game',
-    };
-
-    setMessages(prev => [...prev, newMessage]);
-    setMessage('');
-
-    // TODO: Send message via WebSocket
-    console.log('Sending message:', newMessage);
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newMessage.trim() && isConnected) {
+      sendChatMessage(newMessage);
+      setNewMessage('');
     }
   };
 
-  const formatTime = (timestamp: Date) => {
-    return new Date(timestamp).toLocaleTimeString('pt-BR', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const { gameState } = useGame();
-
-  // Helper para buscar dados do jogador pelo userId
-  const getPlayerData = (userId: string) => {
-    if (!gameState) return undefined;
-    if (gameState.players.black.id === userId) return gameState.players.black;
-    if (gameState.players.white.id === userId) return gameState.players.white;
-    return undefined;
-  };
-
   return (
-    <div className="game-chat">
-      <h3>Chat da Partida</h3>
+    <div className="game-chat-container">
+      <div className="chat-header">
+        <h3>Chat da Partida</h3>
+        <div className="chat-status">
+          <span className={`status-dot ${isConnected ? 'online' : 'offline'}`}></span>
+          {isConnected ? 'Conectado' : 'Desconectado'}
+        </div>
+      </div>
+
       <div className="chat-messages">
-        {messages.map((msg) => {
-          const player = getPlayerData(msg.userId);
-          return (
-            <div key={msg.id} className={`chat-message ${msg.userId === 'current-user' ? 'own' : ''}`}>
-              <div className="message-header">
-                {player && (
-                  <span className="avatar-inline"><PlayerAvatar size="small" /></span>
+        {chatMessages.length === 0 ? (
+          <div className="empty-chat-message">
+            Nenhuma mensagem ainda. Diga oi!
+          </div>
+        ) : (
+          chatMessages.map((msg, index) => {
+            // Verifica se a mensagem foi enviada pelo próprio usuário
+            // O backend agora repassa o user_id no nível raiz do objeto
+            const isMe = (msg.user_id === user?.id) || (msg.userId === user?.id);
+            
+            // Define o nome a ser exibido
+            let senderName = 'Oponente';
+            if (isMe) {
+              senderName = 'Você';
+            } else if (msg.username) {
+              senderName = msg.username;
+            } else if (msg.userName) {
+              senderName = msg.userName;
+            }
+
+            return (
+              <div 
+                key={index} 
+                className={`chat-message ${isMe ? 'sent' : 'received'}`}
+              >
+                <div className="message-sender">{senderName}</div>
+                {/* O conteúdo da mensagem agora é lido diretamente de msg.message */}
+                <div className="message-content">{msg.message}</div>
+                
+                {msg.timestamp && (
+                  <div className="message-time">
+                    {new Date(msg.timestamp).toLocaleTimeString([], { 
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                    })}
+                  </div>
                 )}
-                <span className="username">{msg.username}</span>
-                {player && (
-                  <span className="player-rating">({player.rating})</span>
-                )}
-                <span className="timestamp">{formatTime(msg.timestamp)}</span>
               </div>
-              <div className="message-content">{msg.message}</div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
+        <div ref={messagesEndRef} />
       </div>
-      <div className="chat-input">
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="Digite sua mensagem..."
-          rows={2}
-          maxLength={500}
+
+      <form onSubmit={handleSendMessage} className="chat-input-form">
+        <input
+          type="text"
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          placeholder={isConnected ? "Digite sua mensagem..." : "Reconectando..."}
+          disabled={!isConnected}
+          maxLength={200}
         />
-        <button 
-          onClick={handleSendMessage}
-          disabled={message.trim() === ''}
-          className="btn btn-primary"
-        >
-          Enviar
+        <button type="submit" disabled={!isConnected || !newMessage.trim()}>
+          <i className="fas fa-paper-plane"></i>
         </button>
-      </div>
-      <div className="chat-info">
-        <small>Pressione Enter para enviar, Shift+Enter para nova linha</small>
-      </div>
+      </form>
     </div>
   );
 };
