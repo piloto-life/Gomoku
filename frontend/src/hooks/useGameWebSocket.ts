@@ -118,7 +118,6 @@ export const useGameWebSocket = ({
 
             case 'chat_message':
             case 'chat':
-              // CORREÇÃO: Passa a mensagem inteira
               h.onChatMessage && h.onChatMessage(message);
               break;
 
@@ -194,7 +193,7 @@ export const useGameWebSocket = ({
     if (ws.current?.readyState === WebSocket.OPEN) {
       const chatMessage = {
         type: 'chat',
-        message,
+        message: message,
         username: user?.name || user?.username || 'Jogador' // Envia o nome
       };
       ws.current.send(JSON.stringify(chatMessage));
