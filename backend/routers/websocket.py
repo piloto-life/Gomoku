@@ -97,6 +97,7 @@ class ConnectionManager:
             "players": game_info["players"]
         }
         for player in game_info["players"]:
+            # Garante ID string
             p_id = str(player['id']) if isinstance(player, dict) else str(player)
             await self.send_to_user(p_id, json.dumps(message))
 
@@ -131,24 +132,23 @@ async def websocket_game_endpoint(websocket: WebSocket, game_id: str, token: str
                 "game_id": game_id
             }), websocket
         )
-
+        
         while True:
             data = await websocket.receive_text()
             message_data = json.loads(data)
             
+            # Re-injeta o user_id real para segurança
             if user_id:
                 message_data["user_id"] = user_id
             
             msg_type = message_data.get("type")
 
-            if msg_type == "chat":
+            # CORREÇÃO: Aceitar 'chat' ou 'chat_message' e padronizar
+            if msg_type == "chat" or msg_type == "chat_message":
                 message_data["type"] = "chat_message"
                 message_data["timestamp"] = datetime.utcnow().isoformat()
-                if "username" not in message_data and user_id:
-                     pass 
-                
                 await manager.broadcast_to_room(json.dumps(message_data), game_id)
-
+            
             elif msg_type == "move":
                 await manager.broadcast_to_room(json.dumps(message_data), game_id, exclude_websocket=websocket)
                 

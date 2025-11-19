@@ -13,7 +13,6 @@ const GameChat: React.FC<GameChatProps> = ({ gameId }) => {
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Rola para baixo sempre que chega uma nova mensagem
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
@@ -39,15 +38,14 @@ const GameChat: React.FC<GameChatProps> = ({ gameId }) => {
       <div className="chat-messages">
         {chatMessages.length === 0 ? (
           <div className="empty-chat-message">
-            Nenhuma mensagem ainda. Diga oi!
+            Sem mensagens.
           </div>
         ) : (
           chatMessages.map((msg, index) => {
-            // Verifica se a mensagem foi enviada pelo próprio usuário
-            // O backend agora repassa o user_id no nível raiz do objeto
+            // Verifica se a mensagem é minha
             const isMe = (msg.user_id === user?.id) || (msg.userId === user?.id);
             
-            // Define o nome a ser exibido
+            // Define o nome a ser exibido (prioridade para o que vem na mensagem)
             let senderName = 'Oponente';
             if (isMe) {
               senderName = 'Você';
@@ -63,7 +61,6 @@ const GameChat: React.FC<GameChatProps> = ({ gameId }) => {
                 className={`chat-message ${isMe ? 'sent' : 'received'}`}
               >
                 <div className="message-sender">{senderName}</div>
-                {/* O conteúdo da mensagem agora é lido diretamente de msg.message */}
                 <div className="message-content">{msg.message}</div>
                 
                 {msg.timestamp && (
