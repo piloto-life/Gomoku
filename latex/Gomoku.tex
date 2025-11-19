@@ -371,7 +371,7 @@ Durante o desenvolvimento, diversos desafios técnicos surgiram:
 A segurança foi um pilar do projeto, conforme os requisitos da disciplina:
 \begin{itemize}
     \item \textbf{Autenticação:} Implementada com JSON Web Tokens (JWT), utilizando \textit{tokens} de acesso (curta duração) e \textit{refresh tokens} (longa duração) armazenados de forma segura.
-    \item \textbf{HTTPS:} O \textit{deploy} no VPS utiliza Nginx como \textit{proxy} reverso com certificados SSL/TLS (Let's Encrypt), garantindo a criptografia.
+    \item \textbf{HTTPS:} O \textit{deploy} no VPS utiliza Nginx como \textit{proxy} reverso com certificados SSL/TLS, garantindo a criptografia.
     \item \textbf{CORS:} O \textit{backend} FastAPI é configurado para permitir requisições apenas das origens do \textit{frontend} definidas em variáveis de ambiente.
     \item \textbf{Prevenção de Injeção:} O uso de um \textit{driver} Motor para o MongoDB mitiga riscos de NoSQL Injection, pois as consultas são parametrizadas. A validação de entrada é feita pelo Pydantic.
     \item \textbf{XSS/CSRF:} Medidas de sanitização de \textit{inputs} no \textit{frontend} (especialmente em campos de chat) e \textit{headers} de segurança (via Nginx/Helmet.js) foram planejadas para prevenir XSS e CSRF.

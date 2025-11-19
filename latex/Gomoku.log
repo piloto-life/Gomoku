@@ -1,10 +1,10 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2025.11.5)  17 NOV 2025 19:21
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2025.11.5)  19 NOV 2025 17:13
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
  %&-line parsing enabled.
-**c:/Users/alec-/Desktop/Gomoku/docs/latex/Gomoku.tex
-(c:/Users/alec-/Desktop/Gomoku/docs/latex/Gomoku.tex
+**c:/Users/alec-/Desktop/Gomoku/latex/Gomoku.tex
+(c:/Users/alec-/Desktop/Gomoku/latex/Gomoku.tex
 LaTeX2e <2025-11-01>
 L3 programming layer <2025-10-24>
 (c:/texlive/2025/texmf-dist/tex/latex/ieeetran/IEEEtran.cls
@@ -781,14 +781,14 @@ Package rerunfilecheck Info: File `Gomoku.out' has not changed.
  ) 
 Here is how much of TeX's memory you used:
  21320 strings out of 467538
- 374331 string characters out of 5423725
+ 374316 string characters out of 5423725
  1049125 words of memory out of 5000000
  49800 multiletter control sequences out of 15000+600000
  747530 words of font info for 151 fonts, out of 8000000 for 9000
  1144 hyphenation exceptions out of 8191
- 69i,8n,90p,935b,1249s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 69i,8n,90p,930b,1249s stack positions out of 10000i,1000n,20000p,200000b,200000s
 <c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb><c:/texlive/2025/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb><c:/texlive/2025/texmf-dist/fonts/type1/urw/times/utmb8a.pfb><c:/texlive/2025/texmf-dist/fonts/type1/urw/times/utmbi8a.pfb><c:/texlive/2025/texmf-dist/fonts/type1/urw/times/utmr8a.pfb><c:/texlive/2025/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on Gomoku.pdf (4 pages, 121026 bytes).
+Output written on Gomoku.pdf (4 pages, 120893 bytes).
 PDF statistics:
  254 PDF objects out of 1000 (max. 8388607)
  231 compressed objects within 3 object streams

@@ -1,9 +1,9 @@
 # Fdb version 4
-["pdflatex"] 1763418090.56577 "c:/Users/alec-/Desktop/Gomoku/docs/latex/Gomoku.tex" "Gomoku.pdf" "Gomoku" 1763418092.27051 0
-  "Gomoku.aux" 1763418092 6765 9ffc01f2cc659de3c25e3345b46dc03d "pdflatex"
-  "Gomoku.out" 1763418092 4967 a49893004b38a3e9ba33685ea988b750 "pdflatex"
-  "Gomoku.tex" 1763418088 24809 b32fd379130fb88a12337189228133da ""
-  "c:/Users/alec-/Desktop/Gomoku/docs/latex/Gomoku.tex" 1763418088 24809 b32fd379130fb88a12337189228133da ""
+["pdflatex"] 1763583220.60633 "c:/Users/alec-/Desktop/Gomoku/latex/Gomoku.tex" "Gomoku.pdf" "Gomoku" 1763583222.24445 0
+  "Gomoku.aux" 1763583222 6765 9ffc01f2cc659de3c25e3345b46dc03d "pdflatex"
+  "Gomoku.out" 1763583222 4967 a49893004b38a3e9ba33685ea988b750 "pdflatex"
+  "Gomoku.tex" 1763583214 24793 6299074eabec448a03c54c0bd3b66369 ""
+  "c:/Users/alec-/Desktop/Gomoku/latex/Gomoku.tex" 1763583214 24793 6299074eabec448a03c54c0bd3b66369 ""
   "c:/texlive/2025/texmf-dist/fonts/enc/dvips/base/8r.enc" 1762306391 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "c:/texlive/2025/texmf-dist/fonts/map/fontname/texfonts.map" 1762306998 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "c:/texlive/2025/texmf-dist/fonts/tfm/adobe/courier/pcrr8r.tfm" 1762305958 1292 bd42be2f344128bff6d35d98474adfe3 ""
