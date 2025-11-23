@@ -9,6 +9,10 @@ import copy
 from database import get_collection
 from models.user import UserPublic
 from logic.game_logic import check_win
+import os
+
+# Configurable board size (default 15)
+BOARD_SIZE = int(os.getenv('BOARD_SIZE', '15'))
 
 router = APIRouter()
 
@@ -419,7 +423,7 @@ async def websocket_lobby_token_endpoint(websocket: WebSocket):
                             game_doc = {
                                 "mode": "pvp-online",
                                 "status": "active",
-                                "board": [[None for _ in range(19)] for _ in range(19)],
+                                "board": [[None for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)],
                                 "current_player": "black",
                                 "players": {
                                     "black": {
@@ -734,6 +738,31 @@ async def websocket_game_endpoint(
                             "message": f"{user.username} wins!"
                         }
                         await game_manager.send_game_event(game_id, "game_end", win_data)
+                        # Update ranking/stats for online matches
+                        try:
+                            from database import get_database
+                            from services.ranking_service import RankingService
+                            db = await get_database()
+                            ranking_service = RankingService(db)
+
+                            finished_game = await games_collection.find_one({"_id": ObjectId(game_id)})
+                            moves_count = len(finished_game.get('moves', [])) if finished_game else 0
+                            black_p = finished_game.get('players', {}).get('black', {}) if finished_game else {}
+                            white_p = finished_game.get('players', {}).get('white', {}) if finished_game else {}
+
+                            await ranking_service.update_after_game(
+                                game_id=game_id,
+                                player1_id=black_p.get('id'),
+                                player1_username=black_p.get('username', black_p.get('email', '')),
+                                player2_id=white_p.get('id'),
+                                player2_username=white_p.get('username', white_p.get('email', '')),
+                                winner_id=user.id,
+                                game_mode='pvp_online',
+                                total_moves=moves_count,
+                                duration_seconds=None
+                            )
+                        except Exception as e:
+                            print(f"Failed to update ranking after game end: {e}")
                     else:
                         # For now, just broadcast the new state
                         updated_game = await games_collection.find_one({"_id": ObjectId(game_id)})

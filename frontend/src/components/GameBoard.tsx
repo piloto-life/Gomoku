@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { GameState, Position } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import logger from '../utils/logger';
@@ -127,8 +127,107 @@ const GameBoard: React.FC<GameBoardProps> = ({ gameState, onMove }) => {
     );
   };
 
+  const rowsCount = gameState.board?.length ?? 15;
+  const colsCount = (gameState.board && gameState.board[0]) ? gameState.board[0].length : rowsCount;
+  const boardRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const leftRef = useRef<HTMLDivElement>(null);
+  const rightRef = useRef<HTMLDivElement>(null);
+
+  const [containerWidth, setContainerWidth] = useState<number | undefined>(undefined);
+  const [leftWidth, setLeftWidth] = useState<number>(0);
+  const [rightWidth, setRightWidth] = useState<number>(0);
+  const [boardWidth, setBoardWidth] = useState<number | undefined>(undefined);
+  const [boardHeight, setBoardHeight] = useState<number | undefined>(undefined);
+  const [cellSize, setCellSize] = useState<number>(32);
+
+  useEffect(() => {
+    const containerEl = containerRef.current;
+    const leftEl = leftRef.current;
+    const rightEl = rightRef.current;
+    const boardEl = boardRef.current;
+    if (!containerEl) return;
+
+    // Use ResizeObserver if available to measure container and legend sizes
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => {
+        const cRect = containerEl.getBoundingClientRect();
+        setContainerWidth(cRect.width);
+        setBoardHeight(boardEl ? boardEl.getBoundingClientRect().height : undefined);
+        setLeftWidth(leftEl ? leftEl.getBoundingClientRect().width : 0);
+        setRightWidth(rightEl ? rightEl.getBoundingClientRect().width : 0);
+      });
+      ro.observe(containerEl);
+      if (leftEl) ro.observe(leftEl);
+      if (rightEl) ro.observe(rightEl);
+      if (boardEl) ro.observe(boardEl);
+
+      // initial measurement
+      const cRect = containerEl.getBoundingClientRect();
+      setContainerWidth(cRect.width);
+      setBoardHeight(boardEl ? boardEl.getBoundingClientRect().height : undefined);
+      setLeftWidth(leftEl ? leftEl.getBoundingClientRect().width : 0);
+      setRightWidth(rightEl ? rightEl.getBoundingClientRect().width : 0);
+
+      return () => ro.disconnect();
+    }
+
+    // Fallback: window resize
+    const update = () => {
+      const cRect = containerEl.getBoundingClientRect();
+      setContainerWidth(cRect.width);
+      setBoardHeight(boardEl ? boardEl.getBoundingClientRect().height : undefined);
+      setLeftWidth(leftEl ? leftEl.getBoundingClientRect().width : 0);
+      setRightWidth(rightEl ? rightEl.getBoundingClientRect().width : 0);
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [colsCount, rowsCount]);
+
+  // Compute cell size (px) based on measured container width and legend widths
+  useEffect(() => {
+    const boardEl = boardRef.current;
+    if (!colsCount) return;
+
+    // Determine gap (grid gap) from board element if available
+    const styles = boardEl ? window.getComputedStyle(boardEl) : null;
+    const gapRaw = styles ? (styles.getPropertyValue('gap') || styles.getPropertyValue('grid-gap') || '1px') : '1px';
+    const gapPx = parseFloat(gapRaw) || 1;
+
+    let availableBoardPx: number | undefined = undefined;
+
+    if (typeof containerWidth === 'number') {
+      // Subtract left and right legends (if present) to compute center column width
+      const left = leftWidth || 0;
+      const right = rightWidth || 0;
+      // small safety subtract for paddings/gutters
+      const safety = 8;
+      availableBoardPx = Math.max(0, containerWidth - left - right - safety);
+    } else if (boardEl) {
+      // Fallback: measure board element directly
+      availableBoardPx = boardEl.getBoundingClientRect().width;
+    }
+
+    if (!availableBoardPx) return;
+
+    const rawCell = Math.floor((availableBoardPx - (colsCount - 1) * gapPx) / colsCount);
+    const minCell = 12;
+    const maxCell = 48;
+    const size = Math.max(minCell, Math.min(rawCell, maxCell));
+    setCellSize(size);
+
+    // Also set an explicit boardWidth (center column) so legends and coord rows can align
+    const computedBoardWidth = colsCount * size + (colsCount - 1) * gapPx;
+    setBoardWidth(Math.floor(computedBoardWidth));
+  }, [containerWidth, leftWidth, rightWidth, colsCount]);
+
   return (
-    <div className={`game-board-container ${isMyTurn() ? 'my-turn' : 'opponent-turn'} ${isProcessingMove ? 'processing' : ''}`}>
+    <div
+      ref={containerRef}
+      className={`game-board-container ${isMyTurn() ? 'my-turn' : 'opponent-turn'} ${isProcessingMove ? 'processing' : ''}`}
+      style={{ ['--cell-size' as any]: `${cellSize}px` } as React.CSSProperties}
+    >
       {/* Indicador de turno */}
       <div className={`turn-indicator ${gameState.currentPlayer}`}>
         {isMyTurn() ? (
@@ -142,26 +241,26 @@ const GameBoard: React.FC<GameBoardProps> = ({ gameState, onMove }) => {
         )}
       </div>
       
-      <div className="board-coordinates">
+      <div className="board-coordinates" style={{ ['--cols' as any]: colsCount.toString(), ['--board-width' as any]: boardWidth ? `${boardWidth}px` : undefined } as React.CSSProperties}>
         <div className="coord-row top">
-          {Array.from({ length: 19 }, (_, i) => (
+          {Array.from({ length: colsCount }, (_, i) => (
             <span key={i} className="coord-label">
-              {String.fromCharCode(65 + i)}
+              {String.fromCharCode(65 + i).toUpperCase()}
             </span>
           ))}
         </div>
       </div>
       
-      <div className="board-with-coords">
-        <div className="coord-column left">
-          {Array.from({ length: 19 }, (_, i) => (
+      <div className="board-with-coords" style={{ ['--cols' as any]: colsCount.toString(), ['--rows' as any]: rowsCount.toString(), ['--board-width' as any]: boardWidth ? `${boardWidth}px` : undefined } as React.CSSProperties}>
+        <div ref={leftRef} className="coord-column left">
+          {Array.from({ length: rowsCount }, (_, i) => (
             <span key={i} className="coord-label">
               {i + 1}
             </span>
           ))}
         </div>
-        
-        <div className="game-board">
+
+        <div className="game-board" ref={boardRef} style={{ ['--cols' as any]: colsCount.toString() } as React.CSSProperties}>
           {gameState.board.map((row, rowIndex) =>
             row.map((_, colIndex) => (
               <div key={`${rowIndex}-${colIndex}`} onClick={() => handleCellClick(rowIndex, colIndex)}>
@@ -170,9 +269,9 @@ const GameBoard: React.FC<GameBoardProps> = ({ gameState, onMove }) => {
             ))
           )}
         </div>
-        
-        <div className="coord-column right">
-          {Array.from({ length: 19 }, (_, i) => (
+
+        <div ref={rightRef} className="coord-column right">
+          {Array.from({ length: rowsCount }, (_, i) => (
             <span key={i} className="coord-label">
               {i + 1}
             </span>
@@ -180,11 +279,11 @@ const GameBoard: React.FC<GameBoardProps> = ({ gameState, onMove }) => {
         </div>
       </div>
       
-      <div className="board-coordinates">
+      <div className="board-coordinates" style={{ ['--cols' as any]: colsCount.toString(), ['--board-width' as any]: boardWidth ? `${boardWidth}px` : undefined, ['--board-height' as any]: boardHeight ? `${boardHeight}px` : undefined } as React.CSSProperties}>
         <div className="coord-row bottom">
-          {Array.from({ length: 19 }, (_, i) => (
+          {Array.from({ length: colsCount }, (_, i) => (
             <span key={i} className="coord-label">
-              {String.fromCharCode(65 + i)}
+              {String.fromCharCode(65 + i).toUpperCase()}
             </span>
           ))}
         </div>

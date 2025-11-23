@@ -59,27 +59,7 @@ async def get_online_players(current_user: User = Depends(get_current_user)):
     
     return online_players
 
-@router.get("/queue")
-async def get_waiting_queue(current_user: User = Depends(get_current_user)):
-    """Get current waiting queue for matchmaking."""
-    from .websocket_games import game_manager
-    
-    queue_players = []
-    for user_id in game_manager.waiting_queue:
-        if user_id in game_manager.online_players:
-            player_data = game_manager.online_players[user_id]
-            queue_players.append({
-                "id": player_data.get("id", user_id),
-                "username": player_data.get("username", player_data.get("email", "Unknown")),
-                "email": player_data.get("email", ""),
-                "joined_queue_at": None  # TODO: Track when players joined queue
-            })
-    
-    return {
-        "queue": queue_players,
-        "size": len(queue_players),
-        "estimated_wait_time": max(0, (len(queue_players) - 1) * 30)  # Estimate 30s per player ahead
-    }
+
 
 @router.get("/stats")
 async def get_lobby_stats(current_user: User = Depends(get_current_user)):

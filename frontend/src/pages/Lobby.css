@@ -72,7 +72,7 @@
   gap: 4px;
 }
 
-.user-info > span {
+.user-info>span {
   color: var(--text-secondary);
   font-size: 16px;
 }
@@ -597,26 +597,40 @@
   --bg-primary: #f8fafc;
   --card-bg: #ffffff;
   --bg-secondary: #f1f5f9;
+  --header-bg: #f1f5f9;
+  --input-bg: #ffffff;
   --hover-bg: #e2e8f0;
   --border-color: #e2e8f0;
+  --divider-color: #e2e8f0;
   --text-primary: #1e293b;
   --text-secondary: #64748b;
   --primary-color: #3b82f6;
   --primary-hover: #2563eb;
+  --success-color: #48bb78;
+  --warning-color: #ed8936;
   --danger-color: #ef4444;
   --danger-hover: #dc2626;
+  --info-color: #4299e1;
+  --bg-dark: #000000;
 }
 
 [data-theme="dark"] {
   --bg-primary: #0f172a;
   --card-bg: #1e293b;
   --bg-secondary: #334155;
+  --header-bg: #334155;
+  --input-bg: #0f172a;
   --hover-bg: #475569;
   --border-color: #475569;
+  --divider-color: #475569;
   --text-primary: #f1f5f9;
   --text-secondary: #cbd5e1;
   --primary-color: #3b82f6;
   --primary-hover: #2563eb;
+  --success-color: #48bb78;
+  --warning-color: #ed8936;
   --danger-color: #ef4444;
   --danger-hover: #dc2626;
+  --info-color: #4299e1;
+  --bg-dark: #000000;
 }

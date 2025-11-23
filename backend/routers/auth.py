@@ -6,9 +6,11 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 import os
 from typing import Optional
+import re
 
-from models.user import UserCreate, UserInDB, User, UserProfile, Location, UserPublic
+from models.user import UserCreate, UserInDB, User, UserProfile, Location, UserPublic, UserWithGames
 from database import get_collection
+from utils.serialize import to_jsonable
 
 router = APIRouter()
 security = HTTPBearer()
@@ -36,6 +38,7 @@ class RegisterRequest(BaseModel):
     city: Optional[str] = ""
     state: Optional[str] = ""
     country: Optional[str] = ""
+    cep: Optional[str] = ""
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
@@ -136,7 +139,13 @@ async def register(request: RegisterRequest):
         )
     
     # Create new user
-    location = Location(city=request.city, state=request.state, country=request.country)
+    # Normalize CEP: remove non-digits
+    sanitized_cep = None
+    if getattr(request, 'cep', None):
+        sanitized = re.sub(r"\D", "", request.cep or "")
+        sanitized_cep = sanitized if len(sanitized) > 0 else None
+
+    location = Location(city=request.city, state=request.state, country=request.country, cep=sanitized_cep)
     profile = UserProfile(name=request.name, age=request.age, location=location)
     
     user_data = UserCreate(
@@ -200,8 +209,41 @@ async def login(request: LoginRequest):
     user = UserPublic(**user_doc)
     return Token(access_token=access_token, token_type="bearer", user=user)
 
-@router.get("/me", response_model=UserPublic)
-async def get_current_user_info(current_user: User = Depends(get_current_user)):
-    # Convert User to UserPublic (remove sensitive data)
+@router.get("/me", response_model=UserWithGames)
+async def get_current_user_info(current_user: UserPublic = Depends(get_current_user), games_limit: int = 10):
+    # Cap games_limit to prevent large payloads
+    try:
+        limit = int(games_limit)
+    except Exception:
+        limit = 10
+    if limit < 1:
+        limit = 1
+    if limit > 50:
+        limit = 50
+
+    # Fetch recent games for the user
+    games_collection = await get_collection("games")
+    try:
+        raw_games = await games_collection.find({
+            "$or": [
+                {"players.black.id": current_user.id},
+                {"players.white.id": current_user.id}
+            ]
+        }).sort("updated_at", -1).limit(limit).to_list(length=limit)
+
+        games = [to_jsonable(g) for g in raw_games]
+
+        # Normalize players structure
+        for game in games:
+            if isinstance(game.get("players"), dict):
+                game["players"].setdefault("black", {})
+                game["players"].setdefault("white", {})
+            else:
+                game["players"] = {"black": {}, "white": {}}
+
+    except Exception:
+        games = []
+
     user_dict = current_user.dict()
-    return UserPublic(**user_dict)
+    user_dict["games"] = games
+    return UserWithGames(**user_dict)

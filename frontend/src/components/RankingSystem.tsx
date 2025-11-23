@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import api from '../services/api';
+import { addRankingUpdatedListener } from '../services/events';
 
 interface PlayerRank {
   id: string;
@@ -18,8 +20,8 @@ interface RankingSystemProps {
   className?: string;
 }
 
-const RankingSystem: React.FC<RankingSystemProps> = ({ 
-  showGlobalRanking = true, 
+const RankingSystem: React.FC<RankingSystemProps> = ({
+  showGlobalRanking = true,
   maxPlayers = 10,
   className = ''
 }) => {
@@ -32,75 +34,46 @@ const RankingSystem: React.FC<RankingSystemProps> = ({
   const fetchRankings = useCallback(async () => {
     setLoading(true);
     try {
-      // Simulação de dados - em produção viria da API
-      const mockRankings: PlayerRank[] = [
-        {
-          id: '1',
-          name: 'João Silva',
-          rating: 2150,
-          wins: 45,
-          losses: 12,
-          winRate: 78.9,
-          rank: 1,
-          avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=joao'
-        },
-        {
-          id: '2',
-          name: 'Maria Santos',
-          rating: 2089,
-          wins: 38,
-          losses: 15,
-          winRate: 71.7,
-          rank: 2,
-          avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=maria'
-        },
-        {
-          id: '3',
-          name: 'Pedro Costa',
-          rating: 1987,
-          wins: 34,
-          losses: 18,
-          winRate: 65.4,
-          rank: 3
-        },
-        {
-          id: '4',
-          name: 'Ana Oliveira',
-          rating: 1923,
-          wins: 29,
-          losses: 16,
-          winRate: 64.4,
-          rank: 4
-        },
-        {
-          id: '5',
-          name: 'Carlos Lima',
-          rating: 1876,
-          wins: 25,
-          losses: 19,
-          winRate: 56.8,
-          rank: 5
-        },
-        {
-          id: user?.id || '6',
-          name: user?.name || 'Você',
-          rating: 1654,
-          wins: 18,
-          losses: 22,
-          winRate: 45.0,
-          rank: 8
-        }
-      ];
+      // Fetch leaderboard via central `api` (adds baseURL and auth headers)
+      const leaderboardResponse = await api.get('/api/ranking/leaderboard', {
+        params: { limit: maxPlayers, min_games: 0 }
+      });
+      const leaderboardData = leaderboardResponse.data;
 
-      // Simular busca por ranking específico do usuário
+      // Transform backend data to frontend format
+      const transformedRankings: PlayerRank[] = leaderboardData.players.map((player: any, index: number) => ({
+        id: player.user_id,
+        name: player.username,
+        rating: player.elo_rating,
+        wins: player.wins,
+        losses: player.losses,
+        winRate: player.win_rate * 100, // Convert to percentage
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${player.username}`,
+        rank: index + 1
+      }));
+
+      setRankings(transformedRankings);
+
+      // Fetch current user's stats if logged in
       if (user) {
-        const currentUser = mockRankings.find(p => p.id === user.id);
-        if (currentUser) {
-          setUserRank(currentUser);
+        try {
+          const myStatsResponse = await api.get('/api/ranking/me');
+          const myStats = myStatsResponse.data;
+          const userRankData: PlayerRank = {
+            id: myStats.user_id,
+            name: myStats.username,
+            rating: myStats.elo_rating,
+            wins: myStats.wins,
+            losses: myStats.losses,
+            winRate: myStats.win_rate * 100,
+            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${myStats.username}`,
+            rank: myStats.rank_position || 0
+          };
+          setUserRank(userRankData);
+        } catch (e) {
+          // ignore user stats fetch errors
         }
       }
-
-      setRankings(mockRankings.slice(0, maxPlayers));
     } catch (error) {
       console.error('Erro ao buscar rankings:', error);
     } finally {
@@ -111,6 +84,15 @@ const RankingSystem: React.FC<RankingSystemProps> = ({
   useEffect(() => {
     fetchRankings();
   }, [timeFrame, fetchRankings]);
+
+  // Listen for external requests to refresh rankings (e.g., after saving a game)
+  useEffect(() => {
+    const listener = () => {
+      fetchRankings();
+    };
+    const cleanup = addRankingUpdatedListener(listener);
+    return cleanup;
+  }, [fetchRankings]);
 
   const getRankIcon = (rank: number) => {
     switch (rank) {
@@ -157,10 +139,10 @@ const RankingSystem: React.FC<RankingSystemProps> = ({
           <i className="fas fa-trophy"></i>
           {showGlobalRanking ? 'Ranking Global' : 'Top Jogadores'}
         </h3>
-        
+
         <div className="timeframe-selector">
-          <select 
-            value={timeFrame} 
+          <select
+            value={timeFrame}
             onChange={(e) => setTimeFrame(e.target.value as any)}
             className="timeframe-select"
           >
@@ -189,7 +171,7 @@ const RankingSystem: React.FC<RankingSystemProps> = ({
                   <span className={`rating ${getRatingColor(userRank.rating)}`}>
                     {userRank.rating}
                   </span>
-                  <span className="win-rate">{userRank.winRate}% vitórias</span>
+                  <span className="win-rate">{userRank.winRate.toFixed(1)}% vitórias</span>
                 </div>
               </div>
             </div>
@@ -203,14 +185,14 @@ const RankingSystem: React.FC<RankingSystemProps> = ({
       {/* Rankings List */}
       <div className="rankings-list">
         {rankings.map((player) => (
-          <div 
+          <div
             key={player.id}
             className={`ranking-item ${player.id === user?.id ? 'current-user' : ''}`}
           >
             <div className="rank-position">
               {getRankIcon(player.rank)}
             </div>
-            
+
             <div className="player-info">
               {player.avatar && (
                 <img src={player.avatar} alt={`${player.name} avatar`} className="player-avatar" />
@@ -224,11 +206,11 @@ const RankingSystem: React.FC<RankingSystemProps> = ({
                   <span className={`rating ${getRatingColor(player.rating)}`}>
                     {player.rating}
                   </span>
-                  <span className="win-rate">{player.winRate}% vitórias</span>
+                  <span className="win-rate">{player.winRate.toFixed(1)}% vitórias</span>
                 </div>
               </div>
             </div>
-            
+
             <div className="rank-details">
               <div className="games-summary">
                 <div className="wins-losses">

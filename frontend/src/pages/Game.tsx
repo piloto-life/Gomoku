@@ -130,6 +130,41 @@ const LocalGameComponent: React.FC = () => {
 
   const handleReturnToLobby = async () => {
     setShowEndModal(false);
+    // Attempt to save local finished game to server (if authenticated)
+    try {
+      if (gameState && gameState.id && gameState.id.startsWith('local-') && gameState.status === 'finished') {
+        const payload = {
+          id: gameState.id,
+          mode: gameState.gameMode,
+          board: gameState.board,
+          moves: gameState.moves,
+          players: {
+            black: {
+              id: gameState.players.black?.id,
+              username: gameState.players.black?.name
+            },
+            white: {
+              id: gameState.players.white?.id,
+              username: gameState.players.white?.name
+            }
+          },
+          status: gameState.status,
+          winner: gameState.winner,
+          created_at: gameState.createdAt ? gameState.createdAt.toISOString() : undefined,
+          updated_at: gameState.updatedAt ? gameState.updatedAt.toISOString() : undefined
+        };
+
+        try {
+          await gamesAPI.saveGame(payload);
+          logger.info('GAME', 'Local game saved to server', { gameId: gameState.id });
+        } catch (saveErr) {
+          logger.warn('GAME', 'Failed to save local game to server', { error: saveErr });
+        }
+      }
+    } catch (err) {
+      console.warn('Error while attempting to save local game:', err);
+    }
+
     // Update user stats
     try {
       const updatedUser = await authAPI.getCurrentUser();
@@ -137,6 +172,7 @@ const LocalGameComponent: React.FC = () => {
     } catch (e) {
       // ignore
     }
+
     handleLeaveGame();
   };
 

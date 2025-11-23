@@ -1,6 +1,7 @@
 import axios, { AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { LoginCredentials, RegisterData, AuthResponse, User } from '../types';
 import logger from '../utils/logger';
+import { emitRankingUpdated } from './events';
 
 // Extend Axios config to include metadata
 interface ExtendedAxiosRequestConfig extends InternalAxiosRequestConfig {
@@ -23,19 +24,19 @@ api.interceptors.request.use(
   (config: ExtendedAxiosRequestConfig) => {
     const startTime = Date.now();
     config.metadata = { startTime };
-    
+
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
+
     // Log the API request
     logger.apiRequest(
       config.method?.toUpperCase() || 'UNKNOWN',
       `${config.baseURL}${config.url}`,
       config.data
     );
-    
+
     return config;
   },
   (error) => {
@@ -48,10 +49,10 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => {
     const config = response.config as ExtendedAxiosRequestConfig;
-    const duration = config.metadata?.startTime 
-      ? Date.now() - config.metadata.startTime 
+    const duration = config.metadata?.startTime
+      ? Date.now() - config.metadata.startTime
       : undefined;
-    
+
     // Log the API response
     logger.apiResponse(
       config.method?.toUpperCase() || 'UNKNOWN',
@@ -60,15 +61,15 @@ api.interceptors.response.use(
       response.data,
       duration
     );
-    
+
     return response;
   },
   (error) => {
     const config = error.config as ExtendedAxiosRequestConfig;
-    const duration = config?.metadata?.startTime 
-      ? Date.now() - config.metadata.startTime 
+    const duration = config?.metadata?.startTime
+      ? Date.now() - config.metadata.startTime
       : undefined;
-    
+
     // Log the API error response
     if (error.response) {
       logger.apiResponse(
@@ -85,7 +86,7 @@ api.interceptors.response.use(
         duration
       });
     }
-    
+
     if (error.response?.status === 401) {
       logger.warn('AUTH', 'Unauthorized access - redirecting to login');
       localStorage.removeItem('token');
@@ -133,6 +134,7 @@ export interface RegisterRequest {
   city?: string;
   state?: string;
   country?: string;
+  cep?: string;
 }
 
 // Helper function to convert backend user to frontend user format
@@ -189,6 +191,7 @@ export const authAPI = {
       city: data.location?.city || '',
       state: data.location?.state || '',
       country: data.location?.country || '',
+      cep: data.location?.cep || '',
     };
 
     try {
@@ -268,6 +271,24 @@ export const gamesAPI = {
       return response.data;
     } catch (error) {
       logger.error('GAME', 'Failed to fetch game details', { gameId, error });
+      throw error;
+    }
+  },
+
+  async saveGame(payload: any) {
+    logger.info('GAME', 'Saving game to server', { id: payload?.id });
+    try {
+      const response = await api.post('/api/games/save', payload);
+      logger.info('GAME', 'Game saved on server', { newId: response.data.id });
+      // Notify UI to refresh rankings/stats after saving a local game
+      try {
+        emitRankingUpdated();
+      } catch (e) {
+        // non-fatal
+      }
+      return response.data;
+    } catch (error) {
+      logger.error('GAME', 'Failed to save game on server', { id: payload?.id, error });
       throw error;
     }
   },
@@ -366,6 +387,70 @@ export const usersAPI = {
       return response.data;
     } catch (error) {
       logger.error('USER', 'Failed to fetch game history', error);
+      throw error;
+    }
+  },
+};
+
+export const chatAPI = {
+  async sendMessage(data: { type: 'lobby' | 'game'; message: string; user_id: string; username: string; timestamp: string; game_id?: string }) {
+    logger.info('CHAT', 'Sending chat message', { type: data.type });
+    try {
+      const response = await api.post('/api/chat/messages', data);
+      logger.info('CHAT', 'Message sent successfully');
+      return response.data;
+    } catch (error) {
+      logger.error('CHAT', 'Failed to send message', { error });
+      throw error;
+    }
+  },
+
+  async getLobbyHistory(limit: number = 100) {
+    logger.debug('CHAT', 'Fetching lobby chat history');
+    try {
+      const response = await api.get(`/api/chat/lobby?limit=${limit}`);
+      logger.debug('CHAT', 'Lobby history retrieved', { count: response.data?.length });
+      return response.data;
+    } catch (error) {
+      logger.error('CHAT', 'Failed to fetch lobby history', { error });
+      throw error;
+    }
+  },
+
+  async getGameHistory(gameId: string, limit: number = 100) {
+    logger.debug('CHAT', 'Fetching game chat history', { gameId });
+    try {
+      const response = await api.get(`/api/chat/messages/${gameId}?limit=${limit}`);
+      logger.debug('CHAT', 'Game history retrieved', { gameId, count: response.data?.length });
+      return response.data;
+    } catch (error) {
+      logger.error('CHAT', 'Failed to fetch game history', { gameId, error });
+      throw error;
+    }
+  },
+};
+
+export const rankingAPI = {
+  async getMyStats() {
+    logger.debug('RANKING', 'Fetching my stats');
+    try {
+      const response = await api.get('/api/ranking/me');
+      logger.debug('RANKING', 'My stats retrieved', { stats: response.data });
+      return response.data;
+    } catch (error) {
+      logger.error('RANKING', 'Failed to fetch my stats', error);
+      throw error;
+    }
+  },
+
+  async getLeaderboard(limit: number = 10, minGames: number = 0) {
+    logger.debug('RANKING', 'Fetching leaderboard', { limit, minGames });
+    try {
+      const response = await api.get(`/api/ranking/leaderboard?limit=${limit}&min_games=${minGames}`);
+      logger.debug('RANKING', 'Leaderboard retrieved', { count: response.data?.players?.length });
+      return response.data;
+    } catch (error) {
+      logger.error('RANKING', 'Failed to fetch leaderboard', error);
       throw error;
     }
   },

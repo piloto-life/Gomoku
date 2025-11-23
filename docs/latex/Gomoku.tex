@@ -164,7 +164,16 @@ A principal motivação do projeto foi aplicar os conceitos e técnicas abordado
 O problema central do projeto foi desenvolver uma aplicação \textit{full-stack} que suportasse múltiplos modos de jogo (PvP online, PvP local e PvE contra IA), autenticação de usuários, comunicação em tempo real e funcionalidades de mídia, como \textit{videochat} P2P e gravação de partidas. A solução deveria seguir o padrão de projeto MVC (Model-View-Controller), ser responsiva (desktop e mobile) e atender a rigorosos requisitos de segurança e infraestrutura, incluindo o \textit{deploy} obrigatório em um servidor VPS-UFSC.
 
 %\subsection{Trabalhos Relacionados}
-%TODO
+\subsection{Trabalhos Relacionados}
+Existem diversas implementações do jogo Gomoku disponíveis, tanto em plataformas web quanto mobile. Algumas das mais notáveis incluem:
+
+\begin{itemize}
+    \item \textbf{Gomoku Online (gomoku.com)}: Uma plataforma popular que oferece partidas contra IA e outros jogadores. Utiliza um sistema de ranking ELO similar ao proposto neste trabalho, mas carece de recursos de vídeo em tempo real.
+    \item \textbf{Renju Portal}: Focado na variante profissional do Gomoku (Renju), possui regras mais estritas e uma comunidade competitiva forte. A interface é funcional, porém datada.
+    \item \textbf{Implementações Open Source no GitHub}: Diversos projetos utilizam tecnologias como Socket.IO e Node.js para prover jogabilidade em tempo real. No entanto, poucos integram recursos avançados como gravação de partidas e videochat diretamente na aplicação.
+\end{itemize}
+
+O presente projeto se diferencia ao integrar, em uma única plataforma, o jogo clássico, sistema de ranking, comunicação por vídeo (WebRTC) e gravação de partidas (FFMPEG), atendendo aos requisitos da disciplina de Programação Web.
 
 \subsection{Contribuição do Trabalho}
 A principal contribuição deste trabalho é a integração bem-sucedida de todas as tecnologias apresentadas durante o semestre letivo. Demonstra-se uma arquitetura desacoplada onde o \textit{backend} atua como uma API RESTful e um servidor WebSocket, o \textit{frontend} (React) utiliza esses serviços e os traduz de forma visual, e o MongoDB gerencia a persistência de dados.
@@ -267,24 +276,6 @@ O projeto é desenhado para ser executado com Docker e Docker Compose, simplific
     \item Docker
     \item Docker Compose
     \item Git
-\end{itemize}
-
-\subsubsection{Roteiro de Instalação (Produção)}
-O processo de \textit{deploy} em modo de produção é feito com o Docker Compose, que constrói e orquestra os contêineres do \textit{backend}, \textit{frontend} (servido via Nginx) e MongoDB.
-
-\begin{lstlisting}[language=Bash, caption={Comandos para execução em modo produção}]
-# Clone o repositorio #erro
-git clone https://github.com/Coelho50/Gomoku.git
-cd Gomoku
-
-# Execute em modo producao (com Nginx) #erro
-docker-compose -f docker-compose.yml up -d --profile production
-\end{lstlisting}
-
-\subsubsection{Roteiro de Instalação (Desenvolvimento)}
-O modo de desenvolvimento utiliza o Docker Compose para subir os serviços com \textit{hot-reloading} no \textit{backend} (Uvicorn) e \textit{frontend} (React Scripts), além de expor um painel de administração do MongoDB (Mongo Express).
-
-\begin{lstlisting}[language=Bash, caption={Comandos para execução em modo desenvolvimento}]
 # Execute com MongoDB Admin Interface
 docker-compose --profile debug up
 

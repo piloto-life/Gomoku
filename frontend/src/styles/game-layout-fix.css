@@ -1,0 +1,114 @@
+/* Game Layout Fix - Prevents board overflow and sidebar overlap */
+
+/* Fix for game page - prevent overflow */
+.game-page {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+    position: relative;
+}
+
+/* Ensure game container doesn't overflow */
+.game-container {
+    max-width: 100%;
+    overflow-x: hidden;
+    padding: var(--spacing-md, 1rem);
+    box-sizing: border-box;
+}
+
+/* Main game layout container */
+.game-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-lg, 1.5rem);
+    align-items: start;
+    width: 100%;
+    max-width: 100%;
+    overflow: visible;
+    box-sizing: border-box;
+}
+
+/* Game main area (board) */
+.game-main {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    order: 1;
+    min-width: 0;
+    max-width: 100%;
+    overflow: visible;
+    box-sizing: border-box;
+    position: relative;
+}
+
+/* Game sidebar */
+.game-sidebar {
+    order: 2;
+    min-width: 0;
+    height: auto;
+    position: static !important;
+    box-sizing: border-box;
+}
+
+/* Board container - prevent floating */
+.game-board-container {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: var(--spacing-md, 1rem);
+    background: linear-gradient(135deg, #8B4513 0%, #654321 100%);
+    border-radius: var(--radius-xl, 1rem);
+    box-shadow: var(--shadow-xl, 0 10px 40px rgba(0, 0, 0, 0.3));
+    transition: all var(--transition-base, 0.3s ease);
+    position: relative;
+    box-sizing: border-box;
+    z-index: 1;
+}
+
+/* Tablet (768px - 1024px) */
+@media (min-width: 768px) {
+    .game-layout {
+        grid-template-columns: 1fr 350px;
+        gap: var(--spacing-lg, 1.5rem);
+    }
+
+    .game-main {
+        order: 1;
+        max-width: calc(100% - 350px - var(--spacing-lg, 1.5rem));
+    }
+
+    .game-sidebar {
+        order: 2;
+        max-width: 350px;
+        min-width: 350px;
+    }
+}
+
+/* Desktop (1025px+) */
+@media (min-width: 1025px) {
+    .game-layout {
+        grid-template-columns: minmax(0, 1fr) 350px;
+        max-width: 1400px;
+        margin: 0 auto;
+        gap: var(--spacing-xl, 2rem);
+    }
+
+    .game-main {
+        max-width: 100%;
+    }
+}
+
+/* Large Desktop (1400px+) */
+@media (min-width: 1400px) {
+    .game-layout {
+        grid-template-columns: minmax(0, 1fr) 400px;
+    }
+
+    .game-sidebar {
+        max-width: 400px;
+
+        .game-container {
+            padding: var(--spacing-sm, 0.5rem);
+        }
+    }

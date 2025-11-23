@@ -1,309 +1,79 @@
-# 📋 TO-DO List - Projeto Gomoku Web UFSC
 
-## 🚀 Entregas Principais
-- [ ] **EP (Escrita do Projeto)** - 25/11/2025 às 20:20
-  - [ ] Arquivo PDF: grupo#_te.pdf
-  - [ ] Códigos LaTeX: grupo#_te_latex.zip  
-  - [ ] Códigos implementação: grupo#_deploy.zip
-  - [ ] URL da aplicação no VPS-UFSC
+Goal 2 — Include user's games in `GET /api/auth/me`
 
-- [ ] **AP (Apresentação do Projeto)** - 25/11/2025 às 20:20
-  - [ ] Website apresentação: grupo#_ap.zip
-  - [ ] URL da apresentação no VPS-UFSC
-  - [ ] Apresentação HTML/CSS/JS (Reveal.js)
+What to change (precise edits)
+- `backend/models/user.py`
+  - Add a new `UserWithGames` Pydantic model (or extend `UserPublic`) that includes `games: List[GamePublic]` (where `GamePublic` mirrors the sanitized game representation).
+- `backend/routers/auth.py`
+  - Modify the `GET /me` route to accept optional query param `games_limit: int = 10` (cap to 50).
+  - Use the current user's id (from JWT) and query the `games` collection using the query:
+    - `{"$or": [{"players.black.id": ObjectId(user_id)}, {"players.white.id": ObjectId(user_id)}]}`
+    (or if `players.*.id` stores string user ids, match on string — inspect DB shape and convert accordingly).
+  - Fetch `raw_games = await games_collection.find(query).sort('updated_at', -1).limit(games_limit).to_list(length=games_limit)`.
+  - Serialize games with `to_jsonable(raw_game)` (converts `_id`->`id`, ObjectId->str, datetime->ISO). Ensure `/backend/utils/serialize.py` is imported and used.
+  - Append sanitized `games` to the returned user dict and return `UserWithGames`.
 
-## 🏗️ Backend - FastAPI + MongoDB
+Pagination/limit
+- Default: `games_limit = 10`; max: 50.
 
-### Core API ✅
-- [x] **Configurar projeto FastAPI**
-  - [x] Estrutura de pastas MVC
-  - [x] Configuração de ambiente
-  - [x] Dockerfile
-  - [x] Requirements.txt
+Tests
+- Add an integration test: create user, insert 12 games containing that user's id, call `/api/auth/me?games_limit=10`, assert response includes `games` with length==10 sorted by `updated_at` desc and that each game has `id` as string (no `_id`).
 
-- [x] **Integração MongoDB**
-  - [x] Configurar conexão
-  - [x] Models de dados (User, Game, Match, etc.)
-  - [x] Agregações e queries
+Goal 3 — Quick-Play loop (frontend)
 
-- [x] **Sistema de Autenticação**
-  - [x] JWT token system
-  - [x] Middleware de autenticação
-  - [x] Password hashing
-  - [ ] Refresh tokens
+Files to inspect and likely root cause
+- `frontend/src/pages/Home.tsx`: quick-play handler that calls `createGame` and navigates.
+- `frontend/src/contexts/GameContext.tsx`: `createGame` implementation used across UI.
+- `frontend/src/services/api.ts`: `gamesAPI.createGame` (if used directly).
+- `frontend/src/pages/Game.tsx`: ensure loading a non-existent local game does not trigger creation.
 
-### Game Logic API ✅
-- [x] **Endpoints do jogo**
-  - [x] POST /api/games (criar nova partida)
-  - [x] GET /api/games/{id} (obter estado da partida)
-  - [x] POST /api/games/{id}/move (fazer jogada)
-  - [x] GET /api/games/{id}/join (entrar em partida)
-  - [x] DELETE /api/games/{id} (deletar partida)
+Likely causes
+- No in-flight guard: clicking multiple times causes multiple POSTs to create games.
+- Navigation triggers remounts and effects that re-run `createGame` (if effect lacks dependency guard).
+- React StrictMode in dev doubles mounts which can expose re-entrancy bugs.
 
-- [x] **WebSocket para tempo real**
-  - [x] Conexão de jogadores
-  - [x] Sincronização de movimentos
-  - [x] Chat em tempo real
-  - [x] Sistema de salas
+Recommended fixes (safe, minimal)
+- `frontend/src/pages/Home.tsx`: add `const [isCreatingGame, setIsCreatingGame] = useState(false)`; at handler start `if (isCreatingGame) return; setIsCreatingGame(true);` and in `finally` set false. Disable button while `isCreatingGame`.
+- Use `navigate('/game/'+id)` (React Router) instead of `window.location` to avoid hard reloads.
+- Optionally add a `creatingRef` guard inside `GameContext.createGame` to prevent duplicate creations from multiple UI entry points.
+- Ensure `useEffect` handlers that may call `createGame` have correct dependency arrays.
 
-### User Management ✅
-- [x] **CRUD de usuários**
-  - [x] Cadastro (nome, idade, localização, avatar)
-  - [x] Login/logout
-  - [x] Atualização de perfil
-  - [x] Listagem de usuários
+Reproduction & verification
+- Before fix: open devtools Network tab, click Quick Play repeatedly, observe multiple POST `/api/games/create` calls.
+- After fix: click once; only one POST should be emitted and the button disabled until completion.
 
-- [ ] **Sistema de ranking**
-  - [ ] Pontuação por vitórias
-  - [ ] Histórico de partidas
-  - [ ] Leaderboard global
-  - [ ] Estatísticas detalhadas
+Commands to run locally (dev)
+```powershell
+cd C:\Users\Luan\Gomoku
+# Start backend (from backend folder if required by app import paths)
+cd backend
+# Example; adapt if you run via uvicorn: python -m uvicorn app:app --reload --port 8000
+python -m uvicorn app:app --reload --port 8000
+# In another terminal: start frontend
+cd ..\frontend
+npm install
+npm start
+```
 
-## 🎨 Frontend - React + TypeScript
+API verification examples (replace host/port as needed)
+```powershell
+# Register with CEP
+curl -X POST "http://localhost:8000/api/auth/register" -H "Content-Type: application/json" -d '{"username":"cepuser","email":"cep@example.com","password":"secret123","name":"CEP Test","age":30,"city":"","state":"","country":"","cep":"01001-000"}'
 
-### Setup Inicial ✅
-- [x] **Configurar projeto React**
-  - [x] Create React App com TypeScript
-  - [x] Configurar Tailwind CSS
-  - [x] Estrutura de componentes
-  - [x] Roteamento (React Router)
+# Get current user with games (after login + token)
+curl -H "Authorization: Bearer <TOKEN>" "http://localhost:8000/api/auth/me?games_limit=10"
+```
 
-- [x] **Estado global**
-  - [x] Context API
-  - [x] Gerenciamento de usuário logado
-  - [x] Estado do jogo
-  - [x] WebSocket integration
+Estimates
+- CEP integration (frontend + small backend): Medium — 3 to 6 hours.
+- `/api/auth/me` games augmentation: Low to Medium — 1 to 3 hours.
+- Quick-play guard: Low — 1 to 2 hours.
 
-### Interface Core ✅
-- [x] **Tabuleiro do jogo**
-  - [x] Componente Board 19x19
-  - [x] Componente Piece (peças)
-  - [x] Validação visual de jogadas
-  - [x] Animações de movimento
+Risks & backward compatibility
+- `cep` is optional — safe for existing users. If you add strict server-side validation, malformed input may be rejected; sanitize inputs instead.
+- Adding `games` to `/api/auth/me` changes response shape (but extends it non-destructively). If some clients expect exact fields, adapt them accordingly.
+- React StrictMode may double-invoke mounts in development; guards must handle re-entrancy.
 
-- [x] **Sistema de autenticação**
-  - [x] Tela de login
-  - [x] Tela de cadastro
-  - [x] Perfil do usuário
-  - [ ] Recuperação de senha
+Next steps
+- Tell me which option you want: implement now, show patches, only backend, or only frontend. I can start implementing the chosen option and will create focused patches and run smoke tests.
 
-### Game Features ✅
-- [x] **Lobby/Salas**
-  - [x] Lista de jogadores online
-  - [x] Criação de salas
-  - [x] Interface de lobby
-  - [ ] Fila de espera
-  - [ ] Convites para partida
-
-- [x] **Chat System**
-  - [x] Chat da partida
-  - [x] Interface de chat
-  - [ ] Chat global
-  - [ ] Moderação básica
-  - [ ] Emojis/reações
-
-### Responsividade ✅
-- [x] **Design adaptativo**
-  - [x] Layout desktop
-  - [x] Layout mobile/tablet
-  - [x] Temas light/dark
-  - [ ] Accessibility (ARIA)
-
-## 🔒 Segurança
-
-### Backend Security
-- [ ] **Proteção contra ataques**
-  - [ ] Input sanitization
-  - [ ] SQL injection prevention (MongoDB)
-  - [ ] XSS protection
-  - [ ] CSRF protection
-  - [ ] Rate limiting
-
-- [ ] **Headers de segurança**
-  - [ ] CORS configuration
-  - [ ] Security headers
-  - [ ] Content Security Policy
-  - [ ] HTTPS enforcement
-
-### Frontend Security
-- [ ] **Validação client-side**
-  - [ ] Form validation
-  - [ ] Input sanitization
-  - [ ] Token storage seguro
-  - [ ] Session management
-
-## 📹 Recursos Avançados
-
-### Video & Audio
-- [ ] **WebRTC Integration**
-  - [ ] Videochat entre jogadores
-  - [ ] Audio chat
-  - [ ] Controles de mídia
-  - [ ] Qualidade adaptativa
-
-- [ ] **Gravação de partidas (FFMPEG)**
-  - [ ] Screen recording
-  - [ ] Audio capture
-  - [ ] Video compression
-  - [ ] Storage no MongoDB
-  - [ ] Player de vídeo custom
-
-### Social Features
-- [ ] **Sistema de amigos**
-  - [ ] Adicionar/remover amigos
-  - [ ] Status online/offline
-  - [ ] Convites diretos
-  - [ ] Chat privado
-
-- [ ] **Compartilhamento**
-  - [ ] Share de partidas
-  - [ ] Links de replay
-  - [ ] Exportar estatísticas
-  - [ ] Social media integration
-
-## 🎯 IA/Bot
-
-### Bot Básico
-- [ ] **Melhorar IA atual**
-  - [ ] Estratégias defensivas
-  - [ ] Estratégias ofensivas
-  - [ ] Diferentes níveis de dificuldade
-  - [ ] Algoritmo minimax
-
-### Bot Avançado
-- [ ] **Machine Learning (opcional)**
-  - [ ] Treinamento com partidas
-  - [ ] Neural networks
-  - [ ] Reinforcement learning
-  - [ ] API para diferentes bots
-
-## 🖥️ DevOps & Deploy
-
-### Ambiente de Desenvolvimento ✅
-- [x] **Docker setup**
-  - [x] Backend container
-  - [x] Frontend container
-  - [x] MongoDB container
-  - [x] Docker compose
-
-- [ ] **CI/CD Pipeline**
-  - [ ] GitHub Actions
-  - [ ] Automated testing
-  - [ ] Deploy automático
-  - [ ] Environment variables
-
-### Deploy VPS-UFSC
-- [ ] **Configuração servidor**
-  - [ ] HTTPS certificate
-  - [ ] Nginx configuration
-  - [ ] PM2 para backend
-  - [ ] Static files serving
-
-- [ ] **Monitoramento**
-  - [ ] Health checks
-  - [ ] Error logging
-  - [ ] Performance monitoring
-  - [ ] Backup automático
-
-## 📚 Documentação (LaTeX)
-
-### Estrutura do Artigo
-- [ ] **Template UFSC configurado**
-- [ ] **Título e autores**
-- [ ] **Resumo (Abstract)**
-- [ ] **Introdução**
-  - [ ] Motivação
-  - [ ] Problema
-  - [ ] Trabalhos relacionados
-  - [ ] Contribuição
-  - [ ] Organização
-
-- [ ] **Fundamentação teórica**
-  - [ ] Conceitos de programação web
-  - [ ] Arquitetura MVC
-  - [ ] WebSocket e tempo real
-  - [ ] Segurança web
-
-- [ ] **Materiais e métodos**
-  - [ ] Tecnologias utilizadas
-  - [ ] Metodologia de desenvolvimento
-  - [ ] Roteiro de instalação
-  - [ ] Arquitetura do sistema
-
-- [ ] **Resultados**
-  - [ ] Screenshots da aplicação
-  - [ ] Árvore DOM
-  - [ ] Estrutura MVC implementada
-  - [ ] Testes de segurança
-  - [ ] Performance
-
-- [ ] **Conclusão**
-- [ ] **Referências bibliográficas**
-- [ ] **Apêndices com código**
-
-### Apresentação (Reveal.js)
-- [ ] **Slides HTML/CSS/JS**
-- [ ] **Demo ao vivo**
-- [ ] **Aspectos técnicos**
-- [ ] **Discussão de segurança**
-- [ ] **20 min + 5 min tolerância**
-
-## ✅ Critérios de Avaliação
-
-### Aplicação Web (9.5 pontos)
-- [ ] Website 24/7 HTTPS VPS-UFSC (0.5pt)
-- [ ] Padrão MVC (0.5pt)
-- [ ] Front-end completo (4.375pt)
-- [ ] Back-end MongoDB + CRUD (2.125pt)
-- [ ] Aspectos de segurança (0.5pt)
-- [ ] Apresentação reveal.js (1.0pt)
-- [ ] Códigos-fonte postados (0.5pt)
-
-### Trabalho Escrito (10.0 pontos)
-- [ ] Template LaTeX UFSC (1.0pt)
-- [ ] Estrutura completa (5.75pt)
-- [ ] Conteúdo técnico (2.75pt)
-- [ ] Arquivos finais (0.5pt)
-
-## 🎯 Prioridades
-
-### Semana 1-2: Setup Base
-1. Configurar FastAPI + MongoDB
-2. Setup React + TypeScript
-3. Autenticação básica
-4. Deploy inicial VPS-UFSC
-
-### Semana 3-4: Core Features
-1. Tabuleiro funcional
-2. WebSocket para tempo real
-3. Sistema de salas/lobby
-4. Chat básico
-
-### Semana 5-6: Recursos Avançados
-1. Videochat WebRTC
-2. Gravação FFMPEG
-3. Sistema de ranking
-4. Testes de segurança
-
-### Semana 7-8: Finalização
-1. Documentação LaTeX
-2. Apresentação Reveal.js
-3. Testes finais
-4. Deploy final
-
-## 📅 Cronograma
-
-| Data | Milestone |
-|------|-----------|
-| 01/09 | Setup inicial + VPS |
-| 15/09 | Autenticação + Tabuleiro |
-| 01/10 | Multiplayer funcional |
-| 15/10 | Chat + WebRTC |
-| 01/11 | Gravação + Ranking |
-| 15/11 | Documentação LaTeX |
-| 20/11 | Apresentação final |
-| **25/11** | **ENTREGA FINAL** |
-
----
-
-**⚠️ IMPORTANTE:** Manter deploy 24/7 no VPS-UFSC durante todo o desenvolvimento!

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, status
+import os
 from typing import Optional
 from datetime import datetime
 from bson import ObjectId
@@ -8,8 +9,12 @@ from routers.auth import get_current_user
 from database import get_collection
 from models.user import UserPublic
 from .websocket_games import game_manager
+from utils.serialize import to_jsonable
 
 router = APIRouter()
+
+# Configurable board size (default 15)
+BOARD_SIZE = int(os.getenv('BOARD_SIZE', '15'))
 
 class CreateGameRequest(BaseModel):
     mode: str  # "pvp-local", "pvp-online", "pve"
@@ -24,6 +29,18 @@ class GameResponse(BaseModel):
 class MoveRequest(BaseModel):
     row: int
     col: int
+
+
+class SaveGameRequest(BaseModel):
+    id: str
+    mode: str
+    board: list
+    moves: Optional[list] = []
+    players: dict
+    status: str
+    winner: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 @router.post("/create", response_model=GameResponse)
 async def create_game(request: CreateGameRequest, current_user: UserPublic = Depends(get_current_user)):
@@ -59,7 +76,7 @@ async def create_game(request: CreateGameRequest, current_user: UserPublic = Dep
             "mode": request.mode,
             "difficulty": request.difficulty,
             "status": initial_status,
-            "board": [[None for _ in range(19)] for _ in range(19)],
+            "board": [[None for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)],
             "current_player": "black",
             "players": {
                 "black": {
@@ -139,21 +156,18 @@ async def get_games(current_user: UserPublic = Depends(get_current_user)):
                 {"players.white.id": current_user.id}
             ]
         }).to_list(length=100)
-        
-        # Convert ObjectId to string and ensure players.white exists
-        for game in games:
-            game["id"] = str(game["_id"])
-            del game["_id"]
 
-            # Normalize players structure so frontend code can rely on keys
+        # Convert BSON types and rename `_id` -> `id`
+        games = [to_jsonable(g) for g in games]
+
+        # Normalize players structure so frontend code can rely on keys
+        for game in games:
             if isinstance(game.get("players"), dict):
-                if "black" not in game["players"]:
-                    game["players"]["black"] = {}
-                if "white" not in game["players"]:
-                    game["players"]["white"] = {}
+                game["players"].setdefault("black", {})
+                game["players"].setdefault("white", {})
             else:
                 game["players"] = {"black": {}, "white": {}}
-        
+
         return games
         
     except Exception:
@@ -167,8 +181,19 @@ async def get_game(game_id: str, current_user: UserPublic = Depends(get_current_
     """Get a specific game by ID"""
     try:
         games_collection = await get_collection("games")
-        
-        game = await games_collection.find_one({"_id": ObjectId(game_id)})
+
+        # Validate ObjectId: if client passed a non-ObjectId (e.g. local-... ids)
+        # bson.ObjectId() will raise an exception - handle that and return 404
+        try:
+            oid = ObjectId(game_id)
+        except Exception:
+            # Not a mongo ObjectId -> game not found in DB
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Game not found"
+            )
+
+        game = await games_collection.find_one({"_id": oid})
         
         if not game:
             raise HTTPException(
@@ -191,10 +216,15 @@ async def get_game(game_id: str, current_user: UserPublic = Depends(get_current_
                 detail="Access denied to this game"
             )
         
-        game["id"] = str(game["_id"])
-        del game["_id"]
-        
-        return game
+        # Return a JSON-serializable version and normalize players
+        game_json = to_jsonable(game)
+        if isinstance(game_json.get("players"), dict):
+            game_json["players"].setdefault("black", {})
+            game_json["players"].setdefault("white", {})
+        else:
+            game_json["players"] = {"black": {}, "white": {}}
+
+        return game_json
         
     except HTTPException:
         raise
@@ -213,8 +243,16 @@ async def make_move(
     """Make a move in a game"""
     try:
         games_collection = await get_collection("games")
-        
-        game = await games_collection.find_one({"_id": ObjectId(game_id)})
+        # Safely convert game_id to ObjectId; respond 404 for invalid IDs
+        try:
+            oid = ObjectId(game_id)
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Game not found"
+            )
+
+        game = await games_collection.find_one({"_id": oid})
         
         if not game:
             raise HTTPException(
@@ -261,12 +299,43 @@ async def make_move(
             detail="Failed to make move"
         )
 
+
+@router.post("/save")
+async def save_game(payload: SaveGameRequest, current_user: UserPublic = Depends(get_current_user)):
+    """Persist a client-local game into the database.
+
+    This endpoint allows an authenticated user to save a locally-played game
+    into the server database (for history). It will return the newly created
+    DB id for the saved game.
+    """
+    try:
+        games_collection = await get_collection("games")
+
+        doc = payload.dict()
+        # Use provided timestamps or set now
+        doc["created_at"] = payload.created_at or datetime.utcnow()
+        doc["updated_at"] = payload.updated_at or datetime.utcnow()
+
+        # Insert into DB
+        result = await games_collection.insert_one(doc)
+        new_id = str(result.inserted_id)
+
+        return {"id": new_id}
+    except Exception as e:
+        print(f"❌ Error saving local game: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to save game")
+
 @router.post("/{game_id}/leave")
 async def leave_game(game_id: str, current_user: UserPublic = Depends(get_current_user)):
     """Handle a user leaving a game."""
     games_collection = await get_collection("games")
-    
-    game = await games_collection.find_one({"_id": ObjectId(game_id)})
+    # Safely convert game_id to ObjectId; return 404 for invalid/missing
+    try:
+        oid = ObjectId(game_id)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")
+
+    game = await games_collection.find_one({"_id": oid})
     if not game:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found")
 

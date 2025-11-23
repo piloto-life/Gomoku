@@ -5,22 +5,35 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional, List
 from pydantic import BaseModel
 import logging
+from datetime import datetime
+
+from bson import ObjectId
 
 from models.user import User
 from routers.auth import get_current_user
 from services.ranking_service import RankingService
+from database import get_database
+from utils.serialize import to_jsonable
+
+
+async def get_ranking_service(db = Depends(get_database)):
+    """Dependency provider that constructs a RankingService with the DB."""
+    return RankingService(db)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ranking", tags=["ranking"])
 
 
+
+
+
 @router.get("/leaderboard")
 async def get_leaderboard(
     limit: int = Query(default=100, le=1000),
     tier: Optional[str] = Query(default=None),
-    min_games: int = Query(default=10),
-    ranking_service: RankingService = Depends()
+    min_games: int = Query(default=0, ge=0),
+    ranking_service: RankingService = Depends(get_ranking_service)
 ):
     """
     Obtém ranking (leaderboard)
@@ -30,16 +43,19 @@ async def get_leaderboard(
         tier: Filtrar por tier (Bronze, Prata, Ouro, Platina, Diamante, Mestre)
         min_games: Mínimo de partidas para aparecer
     """
+    logger.debug(f"Leaderboard params - limit={limit}, tier={tier}, min_games={min_games}")
     try:
         leaderboard = await ranking_service.get_leaderboard(
             limit=limit,
             tier=tier,
             min_games=min_games
         )
-        
+
+        sanitized = [to_jsonable(p) for p in leaderboard]
+
         return {
-            "total": len(leaderboard),
-            "players": leaderboard
+            "total": len(sanitized),
+            "players": sanitized
         }
         
     except Exception as e:
@@ -50,21 +66,22 @@ async def get_leaderboard(
 @router.get("/player/{user_id}")
 async def get_player_stats(
     user_id: str,
-    ranking_service: RankingService = Depends()
+    ranking_service: RankingService = Depends(get_ranking_service)
 ):
     """Obtém estatísticas de um jogador"""
     stats = await ranking_service.get_player_stats(user_id)
-    
+
     if not stats:
         raise HTTPException(status_code=404, detail="Jogador não encontrado")
-    
-    return stats
+
+    # Ensure returned document is JSON-serializable
+    return to_jsonable(stats)
 
 
 @router.get("/me")
 async def get_my_stats(
     current_user: User = Depends(get_current_user),
-    ranking_service: RankingService = Depends()
+    ranking_service: RankingService = Depends(get_ranking_service)
 ):
     """Obtém estatísticas do usuário atual"""
     stats = await ranking_service.get_player_stats(str(current_user.id))
@@ -77,7 +94,7 @@ async def get_my_stats(
         )
         return stats.dict()
     
-    return stats
+    return to_jsonable(stats)
 
 
 @router.get("/history")
@@ -85,7 +102,7 @@ async def get_match_history(
     user_id: Optional[str] = Query(default=None),
     limit: int = Query(default=50, le=500),
     current_user: User = Depends(get_current_user),
-    ranking_service: RankingService = Depends()
+    ranking_service: RankingService = Depends(get_ranking_service)
 ):
     """
     Obtém histórico de partidas
@@ -102,10 +119,12 @@ async def get_match_history(
             user_id=user_id,
             limit=limit
         )
-        
+
+        sanitized = [to_jsonable(h) for h in history]
+
         return {
-            "total": len(history),
-            "matches": history
+            "total": len(sanitized),
+            "matches": sanitized
         }
         
     except Exception as e:
@@ -117,7 +136,7 @@ async def get_match_history(
 async def get_elo_history(
     user_id: str,
     days: int = Query(default=30, le=365),
-    ranking_service: RankingService = Depends()
+    ranking_service: RankingService = Depends(get_ranking_service)
 ):
     """
     Obtém histórico de mudanças no ELO
@@ -131,11 +150,13 @@ async def get_elo_history(
             user_id=user_id,
             days=days
         )
-        
+
+        sanitized_history = [to_jsonable(item) for item in history]
+
         return {
             "user_id": user_id,
             "days": days,
-            "history": history
+            "history": sanitized_history
         }
         
     except Exception as e:
@@ -144,7 +165,7 @@ async def get_elo_history(
 
 
 @router.get("/stats/global")
-async def get_global_stats(ranking_service: RankingService = Depends()):
+async def get_global_stats(ranking_service: RankingService = Depends(get_ranking_service)):
     """Obtém estatísticas globais do jogo"""
     try:
         stats = await ranking_service.get_global_stats()
@@ -176,7 +197,7 @@ async def get_rank_tiers():
 async def search_players(
     query: str = Query(min_length=2),
     limit: int = Query(default=20, le=100),
-    ranking_service: RankingService = Depends()
+    ranking_service: RankingService = Depends(get_ranking_service)
 ):
     """Busca jogadores por nome"""
     # TODO: Implementar busca por nome no MongoDB

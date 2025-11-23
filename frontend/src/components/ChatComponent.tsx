@@ -28,6 +28,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
   const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const prevMessageCountRef = useRef<number>(0);
 
   const allMessages = [...messages, ...localMessages].sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
@@ -38,12 +39,16 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [allMessages]);
+    // Only scroll if new messages were added
+    if (allMessages.length > prevMessageCountRef.current) {
+      scrollToBottom();
+      prevMessageCountRef.current = allMessages.length;
+    }
+  }, [allMessages.length]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!messageInput.trim() || !user) return;
 
     const newMessage: ChatMessage = {
@@ -84,8 +89,8 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
         <div className="chat-title">
           <i className="fas fa-comments"></i>
           <span>
-            {isGameChat ? 'Chat do Jogo' : 
-             settings.chatMode === 'active-players' ? 'Jogadores Ativos' : 'Chat Geral'}
+            {isGameChat ? 'Chat do Jogo' :
+              settings.chatMode === 'active-players' ? 'Jogadores Ativos' : 'Chat Geral'}
           </span>
         </div>
         <div className="chat-controls">

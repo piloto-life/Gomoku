@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePageLogger } from '../hooks/useNavigationLogger';
 import { gamesAPI } from '../services/api';
@@ -7,7 +7,10 @@ import logger from '../utils/logger';
 
 const Home: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
-  
+  const navigate = useNavigate();
+  const [isCreatingGame, setIsCreatingGame] = React.useState(false);
+  const [playerStats, setPlayerStats] = React.useState<any>(null);
+
   // Log page visit
   usePageLogger('Home');
 
@@ -20,16 +23,42 @@ const Home: React.FC = () => {
     });
   }, [isAuthenticated, user?.id, user?.name]);
 
+  React.useEffect(() => {
+    const fetchStats = async () => {
+      if (isAuthenticated && user) {
+        try {
+          // Try to fetch rich stats from ranking API
+          const stats = await import('../services/api').then(m => m.rankingAPI.getMyStats());
+          setPlayerStats(stats);
+        } catch (error) {
+          logger.warn('HOME', 'Failed to fetch rich stats, falling back to basic user stats', error);
+          // Fallback to basic stats if ranking API fails
+          setPlayerStats({
+            total_games: user.stats.gamesPlayed,
+            wins: user.stats.gamesWon,
+            win_rate: user.stats.gamesPlayed > 0 ? user.stats.gamesWon / user.stats.gamesPlayed : 0,
+            elo_rating: user.stats.rating,
+            rank_tier: 'Bronze' // Default
+          });
+        }
+      }
+    };
+    fetchStats();
+  }, [isAuthenticated, user]);
+
   const handleQuickPlayClick = async () => {
     logger.userAction('QUICK_PLAY_CLICKED', 'Home');
+    if (isCreatingGame) return;
+    setIsCreatingGame(true);
     try {
       // Create a quick PvE game
       const gameResponse = await gamesAPI.createGame('pve', 'medium');
       logger.info('HOME', 'Quick play game created', { gameId: gameResponse.id });
-      // Navigate to the created game
-      window.location.href = `/game/${gameResponse.id}`;
+      // Navigate to the created game using SPA navigation
+      navigate(`/game/${gameResponse.id}`);
     } catch (error) {
       logger.error('HOME', 'Failed to create quick play game', { error });
+      setIsCreatingGame(false); // Only reset if failed, otherwise navigation happens
     }
   };
 
@@ -42,34 +71,34 @@ const Home: React.FC = () => {
       <div className="hero">
         <h1>Bem-vindo ao Gomoku</h1>
         <p>Jogue o clássico jogo de estratégia Five in a Row online</p>
-        
+
         {isAuthenticated ? (
           <div className="welcome-back">
             <h2>Olá, {user?.name}!</h2>
             <div className="stats">
               <div className="stat">
-                <h3>{user?.stats.gamesPlayed}</h3>
+                <h3>{playerStats?.total_games ?? user?.stats.gamesPlayed}</h3>
                 <p>Jogos</p>
               </div>
               <div className="stat">
-                <h3>{user?.stats.gamesWon}</h3>
+                <h3>{playerStats?.wins ?? user?.stats.gamesWon}</h3>
                 <p>Vitórias</p>
               </div>
               <div className="stat">
-                <h3>{Math.round(((user?.stats.gamesWon || 0) / Math.max(user?.stats.gamesPlayed || 1, 1)) * 100)}%</h3>
+                <h3>{Math.round((playerStats?.win_rate ?? ((user?.stats.gamesWon || 0) / Math.max(user?.stats.gamesPlayed || 1, 1))) * 100)}%</h3>
                 <p>Taxa de Vitória</p>
               </div>
               <div className="stat">
-                <h3>{user?.stats.rating}</h3>
-                <p>Rating</p>
+                <h3>{playerStats?.elo_rating ?? user?.stats.rating}</h3>
+                <p>Rating ({playerStats?.rank_tier ?? 'Bronze'})</p>
               </div>
             </div>
             <div className="action-buttons">
               <Link to="/lobby" className="btn btn-primary" onClick={handleJoinLobbyClick}>
                 Entrar no Lobby
               </Link>
-              <button className="btn btn-secondary" onClick={handleQuickPlayClick}>
-                Jogo Rápido
+              <button className="btn btn-secondary" onClick={handleQuickPlayClick} disabled={isCreatingGame}>
+                {isCreatingGame ? 'Criando...' : 'Jogo Rápido'}
               </button>
             </div>
           </div>

@@ -7,13 +7,14 @@ import logger from '../utils/logger';
 
 const Profile: React.FC = () => {
   const { user, updateUser } = useAuth();
-  
+
   // Log page visit
   usePageLogger('Profile');
 
   const [isEditing, setIsEditing] = useState(false);
   const [gameHistory, setGameHistory] = useState<GameState[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [playerStats, setPlayerStats] = useState<any>(null);
   const [formData, setFormData] = useState({
     name: user?.name || '',
     age: user?.age?.toString() || '',
@@ -24,9 +25,17 @@ const Profile: React.FC = () => {
 
   useEffect(() => {
     const fetchGameHistory = async () => {
+      // If user object already has games (from /me endpoint), use them
+      if (user?.games && user.games.length > 0) {
+        // Cast to GameState[] as the backend returns a slightly different shape but compatible for display
+        setGameHistory(user.games as unknown as GameState[]);
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       logger.info('PROFILE', 'Fetching game history');
-      
+
       try {
         const history = await usersAPI.getGameHistory();
         setGameHistory(history);
@@ -41,6 +50,28 @@ const Profile: React.FC = () => {
     if (user) {
       fetchGameHistory();
     }
+  }, [user]);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (user) {
+        try {
+          const stats = await import('../services/api').then(m => m.rankingAPI.getMyStats());
+          setPlayerStats(stats);
+        } catch (error) {
+          logger.warn('PROFILE', 'Failed to fetch rich stats', error);
+          setPlayerStats({
+            total_games: user.stats.gamesPlayed,
+            wins: user.stats.gamesWon,
+            losses: user.stats.gamesLost,
+            win_rate: user.stats.gamesPlayed > 0 ? user.stats.gamesWon / user.stats.gamesPlayed : 0,
+            elo_rating: user.stats.rating,
+            rank_tier: 'Bronze'
+          });
+        }
+      }
+    };
+    fetchStats();
   }, [user]);
 
   useEffect(() => {
@@ -68,7 +99,7 @@ const Profile: React.FC = () => {
     if (!user) return;
 
     logger.userAction('SAVE_PROFILE_CLICKED', 'Profile');
-    
+
     const updatedUserData: Partial<User> = {
       name: formData.name,
       age: formData.age ? parseInt(formData.age, 10) : undefined,
@@ -119,7 +150,7 @@ const Profile: React.FC = () => {
 
         <div className="profile-section">
           <h2>Informações Pessoais</h2>
-          
+
           {isEditing ? (
             <div className="edit-form">
               <div className="form-group">
@@ -198,17 +229,17 @@ const Profile: React.FC = () => {
                 <strong>Idade:</strong> {user.age || 'Não informado'}
               </div>
               <div className="info-item">
-                <strong>Localização:</strong> 
-                {user.location ? 
-                  `${user.location.city}, ${user.location.state}, ${user.location.country}` : 
+                <strong>Localização:</strong>
+                {user.location ?
+                  `${user.location.city}, ${user.location.state}, ${user.location.country}` :
                   'Não informado'
                 }
               </div>
               <div className="info-item">
                 <strong>Membro desde:</strong> {new Date(user.createdAt).toLocaleDateString('pt-BR')}
               </div>
-              
-              <button onClick={() => setIsEditing(true)} className="btn btn-primary">
+
+              <button onClick={handleEdit} className="btn btn-primary">
                 Editar Perfil
               </button>
             </div>
@@ -219,29 +250,46 @@ const Profile: React.FC = () => {
           <h2>Estatísticas de Jogo</h2>
           <div className="stats-grid">
             <div className="stat-card">
-              <h3>{user.stats.gamesPlayed}</h3>
+              <h3>{playerStats?.rank_position ? `#${playerStats.rank_position}` : '-'}</h3>
+              <p>Ranking Global</p>
+            </div>
+            <div className="stat-card">
+              <h3>{playerStats?.elo_rating ?? user.stats.rating}</h3>
+              <p>Rating ({playerStats?.rank_tier ?? 'Bronze'})</p>
+            </div>
+            <div className="stat-card">
+              <h3>{playerStats?.total_games ?? user.stats.gamesPlayed}</h3>
               <p>Jogos Totais</p>
             </div>
             <div className="stat-card">
-              <h3>{user.stats.gamesWon}</h3>
+              <h3>{playerStats?.wins ?? user.stats.gamesWon}</h3>
               <p>Vitórias</p>
             </div>
             <div className="stat-card">
-              <h3>{user.stats.gamesLost}</h3>
+              <h3>{playerStats?.losses ?? user.stats.gamesLost}</h3>
               <p>Derrotas</p>
             </div>
             <div className="stat-card">
               <h3>
-                {user.stats.gamesPlayed > 0
-                  ? Math.round((user.stats.gamesWon / user.stats.gamesPlayed) * 100)
-                  : 0}
-                %
+                {Math.round((playerStats?.win_rate ?? (user.stats.gamesPlayed > 0 ? user.stats.gamesWon / user.stats.gamesPlayed : 0)) * 100)}%
               </h3>
               <p>Taxa de Vitória</p>
             </div>
             <div className="stat-card">
-              <h3>{user.stats.rating}</h3>
-              <p>Rating Atual</p>
+              <h3>{playerStats?.current_streak ?? 0}</h3>
+              <p>Sequência Atual</p>
+            </div>
+            <div className="stat-card">
+              <h3>{playerStats?.best_streak ?? 0}</h3>
+              <p>Melhor Sequência</p>
+            </div>
+            <div className="stat-card">
+              <h3>{playerStats?.avg_moves_per_game ?? 0}</h3>
+              <p>Média de Jogadas</p>
+            </div>
+            <div className="stat-card">
+              <h3>{playerStats?.fastest_win ?? '-'}</h3>
+              <p>Vitória Mais Rápida</p>
             </div>
           </div>
         </div>

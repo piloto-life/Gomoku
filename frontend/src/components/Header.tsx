@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import SettingsModal from './SettingsModal';
 
 const Header: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
+  const [showSettings, setShowSettings] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -46,22 +48,28 @@ const Header: React.FC = () => {
             <Link to="/register">Registrar</Link>
           </>
         )}
-        <button 
-          onClick={toggleTheme}
+        <button
+          onClick={() => setShowSettings(true)}
           className="btn btn-secondary"
           style={{ marginLeft: '1rem' }}
+          title="Configurações"
         >
-          🌓
+          <i className="fas fa-cog"></i>
         </button>
         {isAuthenticated && (
           <span style={{ marginLeft: '1rem' }}>
-            Olá, {user?.name}! 
+            Olá, {user?.name}!
             <button onClick={handleLogout} className="btn" style={{ marginLeft: '0.5rem' }}>
               Sair
             </button>
           </span>
         )}
       </nav>
+
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+      />
     </header>
   );
 };

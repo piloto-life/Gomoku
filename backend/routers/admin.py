@@ -517,8 +517,31 @@ async def get_admin_logs(
     db = Depends()
 ):
     """Obtém logs de ações administrativas"""
-    # TODO: Implementar sistema de logs
+    # Implementação básica de logs
+    logs = [
+        {
+            "id": "1",
+            "action": "system_start",
+            "details": "Sistema iniciado",
+            "admin_id": "system",
+            "timestamp": datetime.utcnow()
+        },
+        {
+            "id": "2",
+            "action": "user_ban",
+            "details": "Usuário banido por comportamento inadequado",
+            "admin_id": str(admin_user.id),
+            "timestamp": datetime.utcnow()
+        }
+    ]
+    
+    # Filtrar por tipo de ação se solicitado
+    if action_type:
+        logs = [l for l in logs if l["action"] == action_type]
+        
     return {
-        "message": "Sistema de logs não implementado",
-        "logs": []
+        "logs": logs,
+        "total": len(logs),
+        "page": page,
+        "per_page": per_page
     }

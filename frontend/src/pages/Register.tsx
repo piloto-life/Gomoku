@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { lookupCep } from '../services/cep';
 
 const Register: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -13,7 +14,10 @@ const Register: React.FC = () => {
     city: '',
     state: '',
     country: '',
+    cep: '',
   });
+  const [isCepLoading, setIsCepLoading] = useState(false);
+  const [cepError, setCepError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const { register, isLoading, error: authError, clearError } = useAuth();
 
@@ -32,6 +36,30 @@ const Register: React.FC = () => {
       ...formData,
       [e.target.name]: e.target.value,
     });
+  };
+
+  const handleCepLookup = async () => {
+    setCepError(null);
+    const cepValue = formData.cep || '';
+    if (!cepValue) {
+      setCepError('Informe o CEP');
+      return;
+    }
+    setIsCepLoading(true);
+    try {
+      const res = await lookupCep(cepValue);
+      setFormData(prev => ({
+        ...prev,
+        city: res.city,
+        state: res.state,
+        country: res.country,
+        cep: res.cep,
+      }));
+    } catch (err: any) {
+      setCepError(err?.message || 'Erro ao buscar CEP');
+    } finally {
+      setIsCepLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,6 +82,7 @@ const Register: React.FC = () => {
           city: formData.city,
           state: formData.state,
           country: formData.country,
+          cep: formData.cep,
         } : undefined,
       });
       navigate('/lobby');
@@ -153,7 +182,23 @@ const Register: React.FC = () => {
 
           <div className="location-group">
             <h3>Localização (Opcional)</h3>
-            
+            {(cepError) && <div className="error-message">{cepError}</div>}
+            <div className="form-group cep-row">
+              <label htmlFor="cep">CEP:</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  type="text"
+                  id="cep"
+                  name="cep"
+                  value={formData.cep}
+                  onChange={handleChange}
+                  placeholder="00000-000"
+                />
+                <button type="button" className="btn" onClick={handleCepLookup} disabled={isCepLoading}>
+                  {isCepLoading ? 'Buscando...' : 'Buscar CEP'}
+                </button>
+              </div>
+            </div>
             <div className="form-group">
               <label htmlFor="city">Cidade:</label>
               <input

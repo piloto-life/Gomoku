@@ -330,7 +330,7 @@ class RankingService:
         self,
         limit: int = 100,
         tier: Optional[str] = None,
-        min_games: int = 10
+        min_games: int = 0
     ) -> List[Dict]:
         """
         Obtém ranking (leaderboard)

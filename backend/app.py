@@ -5,22 +5,42 @@ import uvicorn
 from dotenv import load_dotenv
 import os
 import json
+import logging
+import asyncio
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 
 from database import connect_to_mongo, close_mongo_connection
-from routers import auth, users, websocket_games, lobby, recordings, webrtc, ranking, admin
+from routers import auth, users, websocket_games, lobby, recordings, webrtc, ranking, admin, chat
 from routers.games import router as games_router
 from models.database import database
+from services.cleanup_service import cleanup_service
 
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger("gomoku_api")
 
 # Lifespan manager for startup/shutdown events
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    logger.info("🚀 Starting Gomoku API...")
     await connect_to_mongo()
+    logger.info("🔄 Starting cleanup service...")
+    asyncio.create_task(cleanup_service.start())
+    logger.info("✅ Server ready!")
     yield
     # Shutdown
+    logger.info("🛑 Shutting down...")
+    cleanup_service.stop()
     await close_mongo_connection()
+    logger.info("👋 Goodbye!")
 
 # Create FastAPI app
 app = FastAPI(
@@ -30,23 +50,28 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware
-# Read allowed origins from environment variable. Accept JSON array or comma-separated string.
-cors_origins_env = os.getenv("CORS_ORIGINS")
-if cors_origins_env:
-    try:
-        ALLOWED_ORIGINS = json.loads(cors_origins_env)
-        if isinstance(ALLOWED_ORIGINS, str):
-            ALLOWED_ORIGINS = [ALLOWED_ORIGINS]
-    except json.JSONDecodeError:
-        ALLOWED_ORIGINS = [o.strip() for o in cors_origins_env.split(',') if o.strip()]
-else:
-    ALLOWED_ORIGINS = [
-        "http://localhost:9001",
-        "http://127.0.0.1:9001",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ]
+ALLOWED_ORIGINS = ["*"]  # Accept all origins
+    
+
+# Logging Middleware
+class LoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        client_host = request.client.host if request.client else "unknown"
+        logger.info(f"📥 {request.method} {request.url.path} from {client_host}")
+        
+        if request.url.query:
+            logger.debug(f"   Query: {request.url.query}")
+        
+        try:
+            response = await call_next(request)
+            status_emoji = "✅" if response.status_code < 400 else "❌"
+            logger.info(f"{status_emoji} {request.method} {request.url.path} → {response.status_code}")
+            return response
+        except Exception as e:
+            logger.error(f"💥 {request.method} {request.url.path} failed: {str(e)}", exc_info=True)
+            raise
+
+app.add_middleware(LoggingMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
@@ -57,6 +82,7 @@ app.add_middleware(
 )
 
 # Include routers
+logger.info("🔧 Registering API routers...")
 app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(games_router, prefix="/api/games", tags=["games"])
@@ -66,6 +92,8 @@ app.include_router(recordings.router, prefix="/api", tags=["recordings"])
 app.include_router(webrtc.router, prefix="/api", tags=["webrtc"])
 app.include_router(ranking.router, prefix="/api", tags=["ranking"])
 app.include_router(admin.router, prefix="/api", tags=["admin"])
+app.include_router(chat.router)
+logger.info("✅ All routers registered successfully")
 
 @app.get("/")
 async def root():
@@ -77,9 +105,11 @@ async def root():
 
 @app.get("/health")
 async def health_check():
+    db_status = "connected" if database.client else "disconnected"
+    logger.debug(f"Health check: DB {db_status}")
     return {
         "status": "healthy",
-        "database": "connected" if database.client else "disconnected"
+        "database": db_status
     }
 
 if __name__ == "__main__":

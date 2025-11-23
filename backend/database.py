@@ -2,6 +2,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import ConnectionFailure
 import os
 from dotenv import load_dotenv
+import certifi
 
 load_dotenv()
 
@@ -18,7 +19,8 @@ async def connect_to_mongo():
     """Create database connection"""
     try:
         database.client = AsyncIOMotorClient(
-            os.getenv("MONGODB_URL", "mongodb://admin:password@localhost:27017/gomoku_db?authSource=admin")
+            os.getenv("MONGODB_URL", "mongodb+srv://gomoku:UfSRpZPBfHaO9ADl@gomoku.ggs5g4x.mongodb.net/?appName=Gomoku"),
+            tlsCAFile=certifi.where()
         )
         database.database = database.client.gomoku_db
         
@@ -39,3 +41,8 @@ async def close_mongo_connection():
 async def get_collection(collection_name: str):
     """Get a collection from the database"""
     return database.database[collection_name]
+
+async def get_fs():
+    """Get GridFS bucket"""
+    from motor.motor_asyncio import AsyncIOMotorGridFSBucket
+    return AsyncIOMotorGridFSBucket(database.database)

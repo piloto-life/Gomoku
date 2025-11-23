@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 from bson import ObjectId
 
@@ -23,6 +23,7 @@ class Location(BaseModel):
     city: Optional[str] = ""
     state: Optional[str] = ""
     country: Optional[str] = ""
+    cep: Optional[str] = ""
 
 class UserStats(BaseModel):
     games_played: int = 0
@@ -81,6 +82,14 @@ class UserPublic(BaseModel):
     is_active: bool
     created_at: datetime
     last_login: Optional[datetime] = None
+
+    class Config:
+        allow_population_by_field_name = True
+
+
+
+class UserWithGames(UserPublic):
+    games: Optional[List[Dict[str, Any]]] = []
 
     class Config:
         allow_population_by_field_name = True

@@ -10,6 +10,9 @@ interface GameInfoProps {
 const GameInfo: React.FC<GameInfoProps> = ({ gameState }) => {
   const { aiDifficulty, setAiDifficulty } = useGame();
 
+  const black = gameState.players.black;
+  const white = gameState.players.white;
+
   const getCurrentPlayerName = () => {
     return gameState.currentPlayer === 'black' 
       ? gameState.players.black.name 
@@ -64,21 +67,25 @@ const GameInfo: React.FC<GameInfoProps> = ({ gameState }) => {
         <div className="player-info">
           <div className={`player ${gameState.currentPlayer === 'black' ? 'active' : ''}`}>
             <div className="player-piece">⚫</div>
-            <PlayerAvatar size="small" />
+            <PlayerAvatar size="small" avatarUrl={black.avatar} name={black.name} alt={black.name || 'Black player'} fallbackToAuth={false} />
             <div className="player-details">
-              <div className="player-name">{gameState.players.black.name}</div>
+              <div className="player-name">
+                {black.id === 'ai' ? 'AI' : (black.name && black.name.trim() !== '' ? black.name : <em>Aguardando jogador</em>)}
+              </div>
               <div className="player-stats">
-                Rating: {gameState.players.black.rating}
+                {typeof black.rating === 'number' && black.rating > 0 && <span>Rating: {black.rating}</span>}
               </div>
             </div>
           </div>
           <div className={`player ${gameState.currentPlayer === 'white' ? 'active' : ''}`}>
             <div className="player-piece">⚪</div>
-            <PlayerAvatar size="small" />
+            <PlayerAvatar size="small" avatarUrl={white.avatar} name={white.name} alt={white.name || 'White player'} fallbackToAuth={false} />
             <div className="player-details">
-              <div className="player-name">{gameState.players.white.name}</div>
+              <div className="player-name">
+                {white.id === 'ai' ? 'AI' : (white.name && white.name.trim() !== '' ? white.name : <em>Aguardando jogador</em>)}
+              </div>
               <div className="player-stats">
-                Rating: {gameState.players.white.rating}
+                {typeof white.rating === 'number' && white.rating > 0 && <span>Rating: {white.rating}</span>}
               </div>
             </div>
           </div>

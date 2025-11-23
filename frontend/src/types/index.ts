@@ -21,6 +21,7 @@ export interface Player {
     city: string;
     state: string;
     country: string;
+    cep?: string;
   };
   isOnline: boolean;
   rating: number;
@@ -58,6 +59,7 @@ export interface User {
     city: string;
     state: string;
     country: string;
+    cep?: string;
   };
   stats: {
     gamesPlayed: number;
@@ -67,6 +69,7 @@ export interface User {
   };
   createdAt: Date;
   lastSeen: Date;
+  games?: any[];
 }
 
 // Auth Types
@@ -85,6 +88,7 @@ export interface RegisterData {
     city: string;
     state: string;
     country: string;
+    cep?: string;
   };
 }
 
@@ -151,5 +155,27 @@ export interface GameSettings {
   soundEnabled: boolean;
   videoChatEnabled: boolean;
   chatEnabled: boolean;
-  boardSize: 19; // Gomoku standard
+  boardSize: number; // Gomoku standard (configurable, e.g. 15 or 19)
+}
+// Ranking Types
+export interface PlayerStats {
+  id: string;
+  user_id: string;
+  username: string;
+  elo_rating: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  total_games: number;
+  win_rate: number;
+  current_streak: number;
+  best_streak: number;
+  total_moves: number;
+  avg_moves_per_game: number;
+  fastest_win?: number;
+  rank_position?: number;
+  rank_tier?: string;
+  last_played?: string;
+  created_at: string;
+  updated_at: string;
 }

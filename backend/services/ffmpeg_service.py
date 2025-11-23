@@ -61,8 +61,14 @@ class FFMPEGRecordingService:
             '-framerate', '24',  # 24 FPS
             '-video_size', f'{width}x{height}',
             '-i', 'desktop',  # Capturar desktop
+            '-f', 'dshow',  # Windows audio capture
+            '-i', 'audio=virtual-audio-capturer',  # Nome do dispositivo de áudio (pode variar)
             '-c:v', 'libvpx-vp9',  # Codec VP9
             '-b:v', '4M',  # 4 Mbit/s
+            '-c:a', 'libvorbis',  # Codec de áudio
+            '-b:a', '128k',  # 128 kbit/s
+            '-ac', '2',  # 2 canais
+            '-ar', '44100',  # 44100 Hz
             '-deadline', 'realtime',  # Baixa latência
             '-cpu-used', '8',  # Velocidade de encoding
             temp_file

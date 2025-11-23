@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useGameWebSocket } from '../hooks/useGameWebSocket';
+import { useAuth } from '../contexts/AuthContext';
+import { authAPI } from '../services/api';
 import { GameState, Move, Position } from '../types';
 
 export interface GameContextType {
@@ -41,6 +43,8 @@ export const GameWebSocketProvider: React.FC<GameWebSocketProviderProps> = ({
   const [moves, setMoves] = useState<Move[]>([]);
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  const { updateUser } = useAuth();
 
   const {
     isConnected,
@@ -84,35 +88,46 @@ export const GameWebSocketProvider: React.FC<GameWebSocketProviderProps> = ({
         players: {
           black: {
             id: state.players?.black?.id || 'unknown',
-            name: state.players?.black?.username || 'Player 1',
-            isOnline: true,
-            rating: 1200,
-            gamesPlayed: 0,
-            gamesWon: 0
+            name: state.players?.black?.username || state.players?.black?.name || '',
+            avatar: state.players?.black?.avatar || state.players?.black?.profile?.avatar_url || undefined,
+            isOnline: Boolean(state.players?.black),
+            rating: typeof state.players?.black?.rating === 'number' ? state.players.black.rating : 0,
+            gamesPlayed: state.players?.black?.games_played ?? 0,
+            gamesWon: state.players?.black?.games_won ?? 0
           },
           white: state.players?.white ? {
-            id: state.players.white.id,
-            name: state.players.white.username || 'Player 2',
+            id: state.players.white.id || 'unknown',
+            name: state.players.white.username || state.players.white.name || '',
+            avatar: state.players?.white?.avatar || state.players?.white?.profile?.avatar_url || undefined,
+            isOnline: Boolean(state.players?.white),
+            rating: typeof state.players?.white?.rating === 'number' ? state.players.white.rating : 0,
+            gamesPlayed: state.players?.white?.games_played ?? 0,
+            gamesWon: state.players?.white?.games_won ?? 0
+          } : (state.mode === 'pve' ? {
+            id: 'ai',
+            name: 'AI',
+            avatar: undefined,
             isOnline: true,
-            rating: 1200,
+            rating: 0,
             gamesPlayed: 0,
             gamesWon: 0
           } : {
-            id: 'ai',
-            name: 'AI',
-            isOnline: true,
-            rating: 1500,
+            id: 'unknown',
+            name: '',
+            avatar: undefined,
+            isOnline: false,
+            rating: 0,
             gamesPlayed: 0,
             gamesWon: 0
-          }
+          })
         },
         currentPlayer: state.current_player || 'black',
-        status: state.status === 'active' ? 'active' : 'finished',
+        status: (state.status as GameState['status']) || 'waiting',
         gameMode: state.mode === 'pve' ? 'pve' : state.mode === 'pvp-online' ? 'pvp-online' : 'pvp-local',
         moves: state.moves?.map((move: any, index: number) => ({
           id: index.toString(),
           position: { row: move.row, col: move.col },
-          playerId: move.player === 'black' ? state.players?.black?.id || 'unknown' : state.players?.white?.id || 'unknown',
+          playerId: move.player === 'black' ? (state.players?.black?.id || 'unknown') : (state.players?.white?.id || (state.mode === 'pve' ? 'ai' : 'unknown')),
           timestamp: new Date(move.timestamp || Date.now()),
           piece: move.player
         })) || [],
@@ -144,6 +159,16 @@ export const GameWebSocketProvider: React.FC<GameWebSocketProviderProps> = ({
         }
       }
       setError(`Game Over! ${data.message}`);
+
+      // Refresh current user stats after game end (async, fire-and-forget)
+      void (async () => {
+        try {
+          const updated = await authAPI.getCurrentUser();
+          updateUser(updated);
+        } catch (e) {
+          console.warn('Failed to refresh user after game end', e);
+        }
+      })();
     },
     onError: (errorMessage) => {
       setError(errorMessage);

@@ -1,30 +1,71 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import logger from '../utils/logger';
+import md5 from 'blueimp-md5';
 
 interface PlayerAvatarProps {
   size?: 'small' | 'medium' | 'large';
   showWebcam?: boolean;
   editable?: boolean;
+  avatarUrl?: string;
+  alt?: string;
+  name?: string;
+  fallbackToAuth?: boolean;
 }
 
-// SVG de avatar padrão como string base64
-const DEFAULT_AVATAR_SVG = "data:image/svg+xml;base64," + btoa(`
-<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
-  <circle cx="50" cy="50" r="50" fill="#e0e0e0"/>
-  <circle cx="50" cy="40" r="15" fill="#999"/>
-  <circle cx="50" cy="75" r="25" fill="#999"/>
-</svg>
-`);
+// Paleta de cores para avatares padrão
+const COLOR_PALETTE = [
+  '#F44336', '#E91E63', '#9C27B0', '#3F51B5', '#2196F3',
+  '#009688', '#4CAF50', '#FF9800', '#795548', '#607D8B'
+];
+
+function hashString(s: string) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (h << 5) - h + s.charCodeAt(i);
+    h |= 0;
+  }
+  return Math.abs(h);
+}
+
+function generateAvatarSvg(initial: string, bgColor: string) {
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">` +
+    `<rect width="100%" height="100%" fill="${bgColor}"/>` +
+    `<text x="50%" y="56%" font-size="44" fill="#ffffff" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-weight="700">${initial}</text>` +
+    `</svg>`;
+  return svg;
+}
+
+function svgToDataUrl(svg: string) {
+  try {
+    return 'data:image/svg+xml;base64,' + btoa(svg);
+  } catch (e) {
+    // Fallback to encodeURIComponent if btoa isn't available for any reason
+    return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+  }
+}
+
+function pickDefaultAvatar(seed?: string) {
+  const key = (seed || '').trim() || 'anon';
+  const idx = hashString(key) % COLOR_PALETTE.length;
+  const initial = key.length > 0 ? key[0].toUpperCase() : '?';
+  const svg = generateAvatarSvg(initial, COLOR_PALETTE[idx]);
+  return svgToDataUrl(svg);
+}
 
 const PlayerAvatar: React.FC<PlayerAvatarProps> = ({ 
   size = 'medium', 
   showWebcam = false,
-  editable = false 
+  editable = false,
+  avatarUrl,
+  alt,
+  name,
+  fallbackToAuth = true
 }) => {
   const { user } = useAuth();
   const [isWebcamActive, setIsWebcamActive] = useState(false);
-  const [avatarSrc, setAvatarSrc] = useState(user?.avatar || '');
+  const [avatarSrc, setAvatarSrc] = useState<string>('');
   const [imageError, setImageError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -38,35 +79,52 @@ const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
 
   // Função para gerar avatar baseado no email usando serviço externo
   const getGravatarUrl = (email: string, size: number = 80) => {
-    // Simples hash do email para gerar um identificador
-    const hash = btoa(email.toLowerCase().trim()).replace(/[^a-zA-Z0-9]/g, '').substring(0, 32);
-    return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=identicon&r=pg`;
+    if (!email) return `https://www.gravatar.com/avatar/?s=${size}&d=identicon&r=pg`;
+    // Gravatar expects an MD5 hex of the trimmed/lowercased email
+    try {
+      const normalized = email.toLowerCase().trim();
+      const hash = md5(normalized);
+      return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=identicon&r=pg`;
+    } catch (e) {
+      // Fallback to generic gravatar URL if hashing fails
+      return `https://www.gravatar.com/avatar/?s=${size}&d=identicon&r=pg`;
+    }
   };
 
   // Função para obter a URL do avatar
   const getAvatarUrl = () => {
+    // If an image failed to load, prefer a generated default avatar
     if (imageError) {
-      return DEFAULT_AVATAR_SVG;
+      return pickDefaultAvatar(name || user?.id || user?.email);
     }
-    
+
+    // Prefer explicit prop first
+    if (avatarUrl) {
+      return avatarUrl;
+    }
+
+    // Then any locally set/uploaded avatar
     if (avatarSrc) {
       return avatarSrc;
     }
-    
-    if (user?.avatar) {
-      return user.avatar;
+
+    // Optionally fall back to authenticated user data
+    if (fallbackToAuth) {
+      if (user?.avatar) {
+        return user.avatar;
+      }
+      if (user?.email) {
+        return getGravatarUrl(user.email);
+      }
     }
-    
-    if (user?.email) {
-      return getGravatarUrl(user.email);
-    }
-    
-    return DEFAULT_AVATAR_SVG;
+
+    // Final fallback: generated deterministic avatar based on name/id/email
+    return pickDefaultAvatar(name || user?.id || user?.email);
   };
 
   const handleImageError = () => {
     logger.warn('AVATAR', 'Failed to load avatar image', { 
-      originalSrc: avatarSrc || user?.avatar,
+      originalSrc: avatarUrl || avatarSrc || user?.avatar,
       userId: user?.id 
     });
     setImageError(true);
@@ -140,6 +198,11 @@ const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
     }
   };
 
+  // Reset image error when the source or identifying props change
+  useEffect(() => {
+    setImageError(false);
+  }, [avatarUrl, avatarSrc, user?.avatar, user?.email, name]);
+
   return (
     <div className="player-avatar-container">
       <div className={`player-avatar ${sizeClasses[size]}`}>
@@ -151,19 +214,13 @@ const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
             className="webcam-feed"
           />
         ) : (
-          imageError ? (
-            <div 
-              dangerouslySetInnerHTML={{ __html: DEFAULT_AVATAR_SVG }}
-              className="w-full h-full flex items-center justify-center"
-            />
-          ) : (
-            <img
-              src={getAvatarUrl()}
-              alt={user?.email || 'Player'}
-              className="avatar-image"
-              onError={handleImageError}
-            />
-          )
+          <img
+            src={getAvatarUrl()}
+            alt={alt || name || user?.name || 'Player'}
+            className="avatar-image"
+            onError={handleImageError}
+            onLoad={() => setImageError(false)}
+          />
         )}
         
         {editable && (

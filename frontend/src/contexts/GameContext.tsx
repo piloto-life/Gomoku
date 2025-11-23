@@ -37,7 +37,7 @@ const initialSettings: GameSettings = {
   soundEnabled: true,
   videoChatEnabled: false,
   chatEnabled: true,
-  boardSize: 19,
+  boardSize: 15,
 };
 
 interface GameContextState {
@@ -109,18 +109,22 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
 
-  const createEmptyBoard = (): (string | null)[][] => {
-    return Array(19).fill(null).map(() => Array(19).fill(null));
+  const getBoardSize = () => state.settings?.boardSize ?? initialSettings.boardSize;
+
+  const createEmptyBoard = (sizeParam?: number): (string | null)[][] => {
+    const s = sizeParam ?? getBoardSize();
+    return Array.from({ length: s }, () => Array.from({ length: s }, () => null));
   };
 
   const makeMove = (position: Position) => {
     if (!state.gameState || state.gameState.status !== 'active') return;
 
     const { row, col } = position;
+    const size = state.settings.boardSize;
     const board = state.gameState.board;
 
     // Check if position is valid and empty
-    if (row < 0 || row >= 19 || col < 0 || col >= 19 || board[row][col] !== null) {
+    if (row < 0 || row >= size || col < 0 || col >= size || board[row][col] !== null) {
       return;
     }
 
@@ -162,6 +166,21 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     dispatch({ type: 'SET_GAME_STATE', payload: newGameState });
+
+    // Persist local games to sessionStorage so reloads can restore them
+    try {
+      if (newGameState.id && newGameState.id.startsWith('local-')) {
+        const key = `local_game_${newGameState.id}`;
+        const toStore = {
+          ...newGameState,
+          createdAt: newGameState.createdAt.toISOString(),
+          updatedAt: newGameState.updatedAt.toISOString(),
+        } as any;
+        sessionStorage.setItem(key, JSON.stringify(toStore));
+      }
+    } catch (e) {
+      console.warn('Failed to persist local game to sessionStorage', e);
+    }
 
     // Handle AI move for PvE mode
     if (state.gameState.gameMode === 'pve' && 
@@ -319,6 +338,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       [1, -1],  // anti-diagonal
     ];
 
+    const size = state.settings.boardSize;
     let maxCount = 1;
 
     for (const [dx, dy] of directions) {
@@ -328,7 +348,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       for (let i = 1; i < 5; i++) {
         const newRow = position.row + dx * i;
         const newCol = position.col + dy * i;
-        if (newRow >= 0 && newRow < 19 && newCol >= 0 && newCol < 19 && board[newRow][newCol] === piece) {
+        if (newRow >= 0 && newRow < size && newCol >= 0 && newCol < size && board[newRow][newCol] === piece) {
           count++;
         } else {
           break;
@@ -339,7 +359,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       for (let i = 1; i < 5; i++) {
         const newRow = position.row - dx * i;
         const newCol = position.col - dy * i;
-        if (newRow >= 0 && newRow < 19 && newCol >= 0 && newCol < 19 && board[newRow][newCol] === piece) {
+        if (newRow >= 0 && newRow < size && newCol >= 0 && newCol < size && board[newRow][newCol] === piece) {
           count++;
         } else {
           break;
@@ -354,8 +374,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const getAvailableMoves = (board: (string | null)[][]): Position[] => {
     const moves: Position[] = [];
-    for (let row = 0; row < 19; row++) {
-      for (let col = 0; col < 19; col++) {
+    const size = state.settings.boardSize;
+    for (let row = 0; row < size; row++) {
+      for (let col = 0; col < size; col++) {
         if (board[row][col] === null) {
           moves.push({ row, col });
         }
@@ -365,10 +386,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const getCenterBiasedMove = (board: (string | null)[][], availableMoves: Position[]): Position => {
-    const center = 9; // Center of 19x19 board
-    
+    const size = state.settings.boardSize;
+    const center = Math.floor(size / 2);
+
     // If center is available and no moves made yet, take it
-    if (board[center][center] === null) {
+    if (board[center] && board[center][center] === null) {
       return { row: center, col: center };
     }
     
@@ -393,13 +415,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const getProximityScore = (board: (string | null)[][], move: Position): number => {
     let score = 0;
     const radius = 2;
-    
+    const size = state.settings.boardSize;
+
     for (let dr = -radius; dr <= radius; dr++) {
       for (let dc = -radius; dc <= radius; dc++) {
         const newRow = move.row + dr;
         const newCol = move.col + dc;
-        
-        if (newRow >= 0 && newRow < 19 && newCol >= 0 && newCol < 19) {
+
+        if (newRow >= 0 && newRow < size && newCol >= 0 && newCol < size) {
           if (board[newRow][newCol] !== null) {
             const distance = Math.abs(dr) + Math.abs(dc);
             score += 1 / (distance + 1); // Closer pieces contribute more
@@ -419,6 +442,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       [1, -1],  // anti-diagonal
     ];
 
+    const size = state.settings.boardSize;
     for (const [dx, dy] of directions) {
       let count = 1;
       
@@ -426,7 +450,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       for (let i = 1; i < 5; i++) {
         const newRow = lastMove.row + dx * i;
         const newCol = lastMove.col + dy * i;
-        if (newRow >= 0 && newRow < 19 && newCol >= 0 && newCol < 19 && board[newRow][newCol] === piece) {
+        if (newRow >= 0 && newRow < size && newCol >= 0 && newCol < size && board[newRow][newCol] === piece) {
           count++;
         } else {
           break;
@@ -437,7 +461,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       for (let i = 1; i < 5; i++) {
         const newRow = lastMove.row - dx * i;
         const newCol = lastMove.col - dy * i;
-        if (newRow >= 0 && newRow < 19 && newCol >= 0 && newCol < 19 && board[newRow][newCol] === piece) {
+        if (newRow >= 0 && newRow < size && newCol >= 0 && newCol < size && board[newRow][newCol] === piece) {
           count++;
         } else {
           break;
@@ -459,6 +483,36 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loadGame = useCallback(async (gameId: string) => {
     try {
+      // If this is a client-local game, avoid calling backend and try to
+      // restore from context state or sessionStorage instead.
+      if (gameId && gameId.startsWith('local-')) {
+        // If the context already has the game loaded, do nothing
+        if (state.gameState && state.gameState.id === gameId) {
+          return;
+        }
+
+        const key = `local_game_${gameId}`;
+        try {
+          const stored = sessionStorage.getItem(key);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            const restored: GameState = {
+              ...parsed,
+              createdAt: new Date(parsed.createdAt),
+              updatedAt: new Date(parsed.updatedAt),
+            };
+            dispatch({ type: 'SET_GAME_STATE', payload: restored });
+            return;
+          }
+        } catch (e) {
+          console.warn('Failed to restore local game from sessionStorage', e);
+        }
+
+        // Nothing to restore for local game - log and return
+        console.warn('Local game not found in context or sessionStorage', gameId);
+        return;
+      }
+
       const gameData = await gamesAPI.getGame(gameId);
       // This mapping logic can be complex, ensure it matches your backend response
       const loadedGameState: GameState = {
@@ -481,7 +535,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Failed to load game:', error);
       // Optionally, handle the error in the UI
     }
-  }, []);
+  }, [state.gameState]);
 
   const createGame = async (
     gameMode: 'pvp-local' | 'pvp-online' | 'pve', 
@@ -498,7 +552,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Convert backend game data to frontend format
         const newGameState: GameState = {
           id: gameData.id,
-          board: Array(19).fill(null).map(() => Array(19).fill(null)),
+          board: createEmptyBoard(),
           currentPlayer: 'black',
           gameMode: gameMode,
           players: {
@@ -592,6 +646,19 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         aiPlayer: gameMode === 'pve' ? player2.name : 'N/A'
       });
       
+      // Persist local game so it can be reloaded after page refresh
+      try {
+        const key = `local_game_${gameId}`;
+        const toStore = {
+          ...newGameState,
+          createdAt: newGameState.createdAt.toISOString(),
+          updatedAt: newGameState.updatedAt.toISOString(),
+        } as any;
+        sessionStorage.setItem(key, JSON.stringify(toStore));
+      } catch (e) {
+        console.warn('Failed to persist local game to sessionStorage', e);
+      }
+
       // Return game data with ID for navigation
       return { 
         success: true, 
@@ -636,6 +703,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Failed to notify backend of leaving game:', error);
       }
     }
+    // If this was a local game, remove persisted sessionStorage copy
+    try {
+      if (state.gameState && state.gameState.id && state.gameState.id.startsWith('local-')) {
+        const key = `local_game_${state.gameState.id}`;
+        sessionStorage.removeItem(key);
+      }
+    } catch (e) {
+      // ignore sessionStorage errors
+    }
+
     dispatch({ type: 'RESET_GAME' });
     dispatch({ type: 'SET_CONNECTION', payload: false });
   };
