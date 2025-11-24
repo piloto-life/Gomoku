@@ -51,10 +51,10 @@
 
 \lstdefinestyle{mystyle}{
     backgroundcolor=\color{backcolour},   
-    commentstyle=\color{codegreen},      
-    keywordstyle=\color{magenta},        
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
     numberstyle=\tiny\color{codegray},
-    stringstyle=\color{codepurple},      
+    stringstyle=\color{codepurple},
     basicstyle=\ttfamily\footnotesize,
     breakatwhitespace=false,         
     breaklines=true,                 
@@ -124,8 +124,7 @@
 \IEEEauthorblockA{\IEEEauthorrefmark{1}Departamento de Informática e Estatística (INE), 
 Universidade Federal de Santa Catarina (UFSC), Florianópolis, SC, Brasil}
 
-\thanks{\Revista~(\siglaRevista).
-Correspond\^encia ao autor: \prenomePrincipal~\sobrenomePrincipal~(email: \emailautor) e \prenome2~\sobrenome2~(email: \emailautordois).}}
+\thanks{\Revista~(\siglaRevista). Correspond\^encia ao autor: \prenomePrincipal~\sobrenomePrincipal~(email: \emailautor) e \prenome2~\sobrenome2~(email: \emailautordois).}}
 
 
 %%------------------------------------------------------
@@ -163,10 +162,10 @@ Correspond\^encia ao autor: \prenomePrincipal~\sobrenomePrincipal~(email: \email
 \IEEEPARstart{O}{} projeto web desenvolvido para a disciplina INE5646 - Programação para Web da UFSC teve como objetivo a criação de uma aplicação web implementando o jogo de estratégia Gomoku, também conhecido como "Five In a Row".
 
 \subsection{Motivação}
-A principal motivação do projeto foi aplicar os conceitos e técnicas abordados na disciplina em um cenário prático. A escolha de um jogo \textit{multiplayer} estratégico permite grande liberadade na escolha e aplicação das tecnologias de \textit{backend} e \textit{frontend} a serem utilizadas. O desafio consistia em construir um sistema robusto, e que integrasse as diversas ferramentas exigidas pelo plano de ensino, gravação de partidas e o protocolo HTTPS.
+A principal motivação do projeto foi aplicar os conceitos e técnicas abordados na disciplina em um cenário prático. A escolha de um jogo \textit{multiplayer} estratégico permite grande liberdade na escolha e aplicação das tecnologias de \textit{backend} e \textit{frontend} a serem utilizadas. O desafio consistia em construir um sistema robusto, e que integrasse as diversas ferramentas exigidas pelo plano de ensino, gravação de partidas e o protocolo HTTPS.
 
 \subsection{Problema}
-O problema central do projeto foi desenvolver uma aplicação \textit{full-stack} que suportasse múltiplos modos de jogo (PvP online, PvP local e PvE contra IA), autenticação de usuários, comunicação em tempo real e funcionalidades de mídia, como a gravação de partidas. A solução deveria seguir o padrão de projeto MVC (Model-View-Controller), ser responsiva (desktop e mobile) e atender a rigorosos requisitos de segurança e infraestrutura, incluindo o \textit{deploy} obrigatório em um servidor VPS-UFSC.
+O problema central do projeto foi desenvolver uma aplicação \textit{full-stack} que suportasse múltiplos modos de jogo (PvP online, PvP local e PvE contra IA), autenticação de usuários, comunicação em tempo real e funcionalidades de mídia, como a gravação de partidas. A solução deveria seguir o padrão de projeto MVC (Model-View-Controller), ser responsiva (desktop e mobile) e atender a diversos requisitos de segurança e infraestrutura, incluindo o \textit{deploy} obrigatório em um servidor VPS-UFSC.
 
 %\subsection{Trabalhos Relacionados}
 %TODO
@@ -192,14 +191,13 @@ FastAPI é um \textit{framework} web Python, baseado em Starlette (para a parte 
 React é uma biblioteca JavaScript para a construção de interfaces de usuário (UI) baseada em componentes \cite{doc:react}. Ele utiliza um \textit{Virtual DOM} para otimizar as atualizações da UI, resultando em uma experiência de usuário fluida. TypeScript é um \textit{superset} do JavaScript que adiciona tipagem estática \cite{doc:typescript}, utilizado no projeto para garantir a manutenibilidade, robustez e escalabilidade do código do \textit{frontend}.
 
 \subsection{MongoDB}
-MongoDB é um banco de dados NoSQL orientado a documentos, que armazena dados em estruturas BSON (\textit{Binary} JSON) \cite{doc:mongodb}. Foi o banco de dados obrigatório para o projeto e é utilizado para persistir dados de usuários, jogos e placares. O projeto também utiliza o MongoDB GridFS, um mecanismo para armazenar arquivos grandes, como as gravações de vídeo das partidas.
+MongoDB é um banco de dados NoSQL orientado a documentos, que armazena dados em estruturas BSON (\textit{Binary} JSON) \cite{doc:mongodb}. Foi o banco de dados obrigatório para o projeto e é utilizado para persistir dados de usuários, jogos e placares. O projeto utiliza Volumes Docker para armazenar arquivos grandes, como as gravações de vídeo das partidas, visando performance de I/O.
 
 \subsection{WebSocket}
 O protocolo WebSocket fornece um canal de comunicação bidirecional e \textit{full-duplex} sobre uma única conexão TCP. Diferente do ciclo de requisição-resposta do HTTP, o WebSocket mantém uma conexão persistente, permitindo que o servidor envie dados ao cliente proativamente. Esta tecnologia é a base para as funcionalidades em tempo real do projeto, como o chat, o \textit{lobby} e a sincronização dos movimentos no tabuleiro.
 
 \subsection{FFMPEG}
-FFMPEG é uma suíte de \textit{software} livre para manipulação, gravação, conversão e \textit{streaming} de áudio e vídeo \cite{doc:ffmpeg}. Conforme os requisitos do projeto, o FFMPEG é utilizado no \textit{backend} para processar e gravar as partidas no formato WebM, que são subsequentemente armazenadas no MongoDB GridFS.
-
+FFMPEG é uma suíte de \textit{software} livre para manipulação, gravação, conversão e \textit{streaming} de áudio e vídeo \cite{doc:ffmpeg}. Conforme os requisitos do projeto, o FFMPEG é utilizado no \textit{backend} para processar e gravar as partidas no formato WebM, que são subsequentemente armazenadas no sistema de arquivos do servidor.
 
 %%------------------------------------------------------
 %% Section
@@ -213,11 +211,8 @@ A aplicação segue um padrão de projeto próximo ao MVC (Model-View-Controller
 
 \begin{itemize}
     \item \textbf{Backend (API):} Implementado em FastAPI, serve como o \textit{Controller} e o \textit{Model}. Ele expõe uma API RESTful para gerenciamento de usuários e jogos, e um \textit{endpoint} WebSocket para comunicação em tempo real (chat, lobby, jogadas). Ele se comunica com o banco de dados MongoDB (usando o \textit{driver} assíncrono Motor) para persistir os dados.
-    
     \item \textbf{Frontend (View):} Implementado em React com TypeScript, é a camada de visualização. Consome a API RESTful do \textit{backend} para operações de dados e se conecta ao WebSocket para atualizações em tempo real. O estado da aplicação é gerenciado localmente nos componentes e através de Contexts do React.
-    
-    \item \textbf{Banco de Dados:} O MongoDB atua como a camada de persistência.
-    
+    \item \textbf{Banco de Dados:} O MongoDB (hospedado no MongoDB Atlas em produção) atua como a camada de persistência.
     \item \textbf{Infraestrutura:} A aplicação é orquestrada utilizando Docker e Docker Compose, facilitando os ambientes de desenvolvimento e produção.
 \end{itemize}
 
@@ -255,7 +250,7 @@ ffmpeg-python & Wrapper para gravação de vídeo \\
 React & Biblioteca de UI \\
 TypeScript & Tipagem estática para JavaScript \\
 Axios & Cliente HTTP (REST) \\
-Socket.io-client & Cliente WebSocket \\
+Native WebSocket & API nativa do navegador \\
 React Router & Roteamento de páginas \\
 \hline
 \end{tabular}
@@ -298,8 +293,8 @@ docker-compose --profile debug up
 
 \subsection{Links do Projeto}
 \begin{itemize}
-    \item \textbf{Repositório GitHub:} \href{https://github.com/Coelho50/Gomoku}{https://github.com/Coelho50/Gomoku}
-    \item \textbf{Link da Aplicação (VPS-UFSC):} \href{https://pw.alec.coelho.vms.ufsc.br}{https://pw.alec.coelho.vms.ufsc.br}
+    \item \textbf{Repositório GitHub:} \href{https://github.com/piloto-life/Gomoku}{https://github.com/piloto-life/Gomoku}
+    \item \textbf{Link da Aplicação (VPS-UFSC):} \href{https://web.luan.costa.vms.ufsc.br/}{https://web.luan.costa.vms.ufsc.br/}
 \end{itemize}
 
 %%------------------------------------------------------
@@ -316,6 +311,7 @@ O \textit{backend} foi estruturado seguindo o padrão MVC, adaptado para o FastA
     \item \textbf{Views (Templates):} O \textit{backend} é \textit{headless} (sem \textit{view}), sendo o React a camada de visualização desacoplada.
     \item \textbf{Controllers (Rotas):} Definidos em `backend/routers/`. Cada arquivo (e.g. `auth.py`, `games.py`, `websocket.py`) agrupa a lógica de negócios para um conjunto de \textit{endpoints}, recebendo requisições, interagindo com os serviços e retornando respostas JSON.
     \item \textbf{Services:} A lógica de negócios complexa (ex: cálculo de ELO, gravação FFMPEG) foi abstraída em \verb|backend/services/|, como \verb|ranking_service.py| e \verb|ffmpeg_service.py|.
+    \item \textbf{Game Manager:} Singleton em memória (\texttt{game\_manager.py}) que gerencia a fila de \textit{matchmaking} e estados transitórios antes da persistência no banco.
 \end{itemize}
 
 A Figura \ref{fig:estrutura-backend} ilustra a árvore de diretórios principal do \textit{backend}.
@@ -330,10 +326,11 @@ A Figura \ref{fig:estrutura-backend} ilustra a árvore de diretórios principal 
 \subsection{Funcionalidades Implementadas}
 O projeto implementou com sucesso todas as funcionalidades requisitadas:
 \begin{itemize}
-    \item \textbf{Gravação com FFMPEG:} O \verb|`ffmpeg_service.py`| gerencia a gravação de partidas, com APIs para iniciar, parar e listar gravações. Os vídeos são armazenados no MongoDB GridFS e podem ser acessados via \textit{streaming} por uma URL.
+    \item \textbf{Gravação com FFMPEG:} O \verb|`ffmpeg_service.py`| gerencia a gravação de partidas, com APIs para iniciar, parar e listar gravações. Os vídeos são armazenados no sistema de arquivos e podem ser acessados via \textit{streaming} por uma URL.
     \item \textbf{Sistema de Ranking ELO:} O \verb|`ranking_service.py`| calcula o ELO dos jogadores após cada partida online (Fator \verb|K=32|), armazena estatísticas e fornece \textit{endpoints} para um \textit{leaderboard} global.
     \item \textbf{Administração CRUD:} O `routers/admin.py` implementa um conjunto completo de rotas protegidas para gerenciamento de usuários, jogos e configurações do sistema.
     \item \textbf{Design Responsivo:} Conforme detalhado em \verb|`DESIGN_IMPLEMENTATION_SUMMARY.md`|, foi implementado um sistema de design responsivo completo, garantindo a usabilidade em dispositivos \textit{mobile} e \textit{desktop}.
+    \item \textbf{Modo Espectador:} Funcionalidade que permite a usuários assistirem partidas em andamento em tempo real via WebSocket, sem permissão de interação no tabuleiro.
 \end{itemize}
 
 As Figuras \ref{fig:tela-lobby} e \ref{fig:tela-jogo} mostram \textit{screenshots} da aplicação final.
@@ -358,10 +355,10 @@ Durante o desenvolvimento, diversos desafios técnicos surgiram:
 
 \begin{itemize}
     \item \textbf{Instabilidade de Conexão WebSocket:} O \textit{lobby} desconectava imediatamente após a conexão. A causa raiz era que o \textit{backend} aceitava a nova conexão \textit{antes} de fechar a conexão antiga do mesmo usuário. A correção envolveu reordenar o fluxo para: 1) Autenticar token, 2) Fechar conexão antiga, 3) Aceitar nova conexão.
-    
     \item \textbf{Matchmaking com Reconexão:} Jogadores desapareciam da fila ao reconectar. A função \verb|`disconnect_from_lobby()`| removia o usuário de \verb|`online_players`|. A solução foi modificar a lógica para, durante uma reconexão, apenas remover o \textit{socket} antigo, mantendo o usuário na lista de jogadores online.
-    
-    \item \textbf{Modal de Vitória Exibido como Erro:} Um bug visual crítico fazia com que a tela de vitória fosse renderizada como um modal de erro. A correção foi feita no `Game.tsx`, garantindo que o estado `isGameOver` com um vencedor disparasse o componente `GameSuccessModal` ao invés de um modal de erro genérico.
+    \item \textbf{Modal de Vitória Exibido como Erro:} Um bug visual fazia com que a tela de vitória fosse renderizada como um modal de erro. A correção foi feita no `Game.tsx`, garantindo que o estado `isGameOver` com um vencedor disparasse o componente `GameSuccessModal` ao invés de um modal de erro genérico.
+    \item \textbf{Dessincronização de Protocolo de Chat:} O Frontend esperava um objeto aninhado e um tipo específico (`chat\_message`), enquanto o Backend enviava um objeto plano com tipo genérico (`chat`). A solução foi a padronização das interfaces de mensagem entre cliente e servidor.
+    \item \textbf{Consistência de Estado no Lobby:} Jogos abandonados permaneciam listados. A solução foi implementar um \textit{garbage collector} acionado por eventos de desconexão do WebSocket que verifica salas vazias e atualiza o status no MongoDB atomicamente.
 \end{itemize}
 
 
@@ -380,17 +377,13 @@ A segurança foi um pilar do projeto, conforme os requisitos da disciplina:
 %% Section
 \section{Conclusão}
 \label{sec:conclusao}
-O desenvolvimento do projeto Gomoku Web atingiu seus objetivos principais, entregando uma aplicação \textit{full-stack} robusta que cumpre os requisitos básicos do jogo, mas também implementa um conjunto de funcionalidades avançadas e complexas.
-
-A arquitetura escolhida, baseada em FastAPI para o \textit{backend} e React para o \textit{frontend}, provou ser altamente eficaz. O FastAPI gerenciou com excelência as operações assíncronas de WebSockets e as requisições da API, enquanto o React forneceu uma interface de usuário fluida e responsiva. A integração de FFMPEG e um sistema de ranking ELO demonstrou a capacidade de estender a aplicação com serviços ao nível requisitado.
-
-Os desafios encontrados, especialmente na estabilidade da comunicação em tempo real e no \textit{design} responsivo, foram superados e resultaram em um sistema mais resiliente e polido.
+O desenvolvimento do projeto Gomoku Web atingiu seus objetivos principais, entregando uma aplicação \textit{full-stack} robusta que cumpre os requisitos básicos do jogo, mas também implementa um conjunto de funcionalidades avançadas e complexas. A arquitetura escolhida, baseada em FastAPI para o \textit{backend} e React para o \textit{frontend}, provou ser altamente eficaz. O FastAPI gerenciou com excelência as operações assíncronas de WebSockets e as requisições da API, enquanto o React forneceu uma interface de usuário fluida e responsiva. A integração de FFMPEG e um sistema de ranking ELO demonstrou a capacidade de estender a aplicação com serviços ao nível requisitado. Os desafios encontrados, especialmente na estabilidade da comunicação em tempo real e no \textit{design} responsivo, foram superados e resultaram em um sistema mais resiliente e polido.
 
 \begin{thebibliography}{10} 
 
-% requisitos do porjeto
+% requisitos do projeto
 \bibitem{projeto_ufsc}
-W. B. da Silva, "Instruções para o PW," \emph{Moodle UFSC - INE5646}, 2025. Acessado em: 05/11/2025. [Disponível em: Gomoku/docs/projeto.md]
+W. B. da Silva, "Instruções para o PW" \emph{Moodle UFSC - INE5646}, 2025. Acessado em: 05/11/2025. [Disponível em: Gomoku/docs/projeto.md]
 
 % arquivos de referencia do texto
 \bibitem{func_impl}
