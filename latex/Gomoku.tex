@@ -24,25 +24,26 @@
 %%------------------------------------------------------
 %% Packages
 %%------------------------------------------------------
-\usepackage[T1]{fontenc}           %% Codificação de caracteres
-\usepackage[utf8]{inputenc}        %% Codificação de caracteres (conversão automática dos acentos)
-\usepackage[dvips]{graphicx}       %% para a macro includegraphics 
+\usepackage[T1]{fontenc}       %% Codificação de caracteres
+\usepackage[utf8]{inputenc}    %% Codificação de caracteres (conversão automática dos acentos)
+\usepackage[dvips]{graphicx}   %% para a macro includegraphics 
 \usepackage[english,brazil]{babel} %% PT_BR e EN (o último define a prioridade no arquivo)
-\usepackage{pgf}                   %% macro para criar gráficos
-\usepackage{epsfig}                %% or use the epsfig package if you prefer to use the old commands
-\usepackage{graphics}              %% use the graphics package for simple commands
-\usepackage{graphicx}              %% or 
-\usepackage{epstopdf}              %% enable EPS (convert to PDF)
-\usepackage{float}                 %% float environment
-\usepackage{eqparbox}              %% to define a group of boxes 
-\usepackage{hyphenat}              %% prevent hyphenation
-\usepackage{hyperref}              %% enalbe one-click link
+\usepackage{pgf}               %% macro para criar gráficos
+\usepackage{epsfig}            %% or use the epsfig package if you prefer to use the old commands
+\usepackage{graphics}          %% use the graphics package for simple commands
+\usepackage{graphicx}          %% or 
+\usepackage{epstopdf}          %% enable EPS (convert to PDF)
+\usepackage{float}             %% float environment
+\usepackage{eqparbox}          %% to define a group of boxes 
+\usepackage{hyphenat}          %% prevent hyphenation
+\usepackage{hyperref}          %% enalbe one-click link
 
-\usepackage{listings}              %% Para blocos de código
-\usepackage{xcolor}                %% Para cores no código
+\usepackage{listings}          %% Para blocos de código
+\usepackage{xcolor}            %% Para cores no código
 
 \usepackage[numbers,sort&compress,square]{natbib} %% e.g., [2-5]
 
+%% --- CORES DO CÓDIGO (Restauradas) ---
 \definecolor{codegreen}{rgb}{0,0.6,0}
 \definecolor{codegray}{rgb}{0.5,0.5,0.5}
 \definecolor{codepurple}{rgb}{0.58,0,0.82}
@@ -50,10 +51,10 @@
 
 \lstdefinestyle{mystyle}{
     backgroundcolor=\color{backcolour},   
-    commentstyle=\color{codegreen},
-    keywordstyle=\color{magenta},
+    commentstyle=\color{codegreen},      % Verde restaurado
+    keywordstyle=\color{magenta},        % Magenta restaurado
     numberstyle=\tiny\color{codegray},
-    stringstyle=\color{codepurple},
+    stringstyle=\color{codepurple},      % Roxo restaurado
     basicstyle=\ttfamily\footnotesize,
     breakatwhitespace=false,         
     breaklines=true,                 
@@ -89,9 +90,13 @@
 \newcommand{\sobrenome@aux}{\csname sobrenome\the\count0\endcsname}
 \makeatother
 
+%% --- CORES DOS LINKS DO TEXTO (Removido Vermelho/Verde) ---
 \hypersetup{
   colorlinks=true,
-  urlcolor=blue,
+  urlcolor=blue,      % Links externos em azul
+  linkcolor=black,    % Links internos (Figuras/Seções) em PRETO (remove vermelho)
+  citecolor=black,    % Citações [1] em PRETO (remove verde)
+  filecolor=black,
   pdfborder={0 0 0},
 }
 
@@ -129,12 +134,12 @@ Correspond\^encia ao autor: \prenomePrincipal~\sobrenomePrincipal~(email: \email
 
   {\selectlanguage{brazil}
     \begin{abstract}
-    Este artigo descreve a implementação de um projeto web completo para a disciplina INE5646 - Programação para Web da UFSC. O projeto consiste em um jogo Gomoku (ou Five in a Row), desenvolvido com uma arquitetura de aplicação web. O \textit{backend} foi implementado em Python utilizando o \textit{framework} FastAPI. O \textit{frontend} foi desenvolvido em React com TypeScript. O armazenamento de dados, incluindo perfis de usuário, estados de jogo e gravações de partidas, é gerenciado pelo banco de dados NoSQL MongoDB, um requisito obrigatório do projeto. A comunicação em tempo real entre jogadores, como o \textit{chat} e a sincronização de movimentos, é realizada via WebSockets. Funcionalidades como \textit{videochat} P2P com WebRTC e gravação de partidas usando FFMPEG também foram implementadas a fim de cumprir com todos os requisitos do projeto.
+    Este artigo descreve a implementação de um projeto web completo para a disciplina INE5646 - Programação para Web da UFSC. O projeto consiste em um jogo Gomoku (ou Five in a Row), desenvolvido com uma arquitetura de aplicação web. O \textit{backend} foi implementado em Python utilizando o \textit{framework} FastAPI. O \textit{frontend} foi desenvolvido em React com TypeScript. O armazenamento de dados, incluindo perfis de usuário, estados de jogo e gravações de partidas, é gerenciado pelo banco de dados NoSQL MongoDB, um requisito obrigatório do projeto. A comunicação em tempo real entre jogadores, como o \textit{chat} e a sincronização de movimentos, é realizada via WebSockets. Funcionalidades como gravação de partidas usando FFMPEG também foram implementadas a fim de cumprir com todos os requisitos do projeto.
     \end{abstract}
     %%----------------- Keywords
     \renewcommand\IEEEkeywordsname{Palavras-chave}
     \begin{IEEEkeywords}
-    Gomoku, Programação Web, FastAPI, React, TypeScript, MongoDB, WebSocket, WebRTC, FFMPEG, Arquitetura MVC.
+    Gomoku, Programação Web, FastAPI, React, TypeScript, MongoDB, WebSocket, FFMPEG, Arquitetura MVC.
     \end{IEEEkeywords}
   }
 }
@@ -158,10 +163,10 @@ Correspond\^encia ao autor: \prenomePrincipal~\sobrenomePrincipal~(email: \email
 \IEEEPARstart{O}{} projeto web desenvolvido para a disciplina INE5646 - Programação para Web da UFSC teve como objetivo a criação de uma aplicação web implementando o jogo de estratégia Gomoku, também conhecido como "Five In a Row".
 
 \subsection{Motivação}
-A principal motivação do projeto foi aplicar os conceitos e técnicas abordados na disciplina em um cenário prático. A escolha de um jogo \textit{multiplayer} estratégico permite grande liberadade na escolha e aplicação das tecnologias de \textit{backend} e \textit{frontend} a serem utilizadas. O desafio consistia em construir um sistema robusto, e que integrasse as diversas ferramentas exigidas pelo plano de ensino, como o \textit{videochat} e o protocolo HTTPS.
+A principal motivação do projeto foi aplicar os conceitos e técnicas abordados na disciplina em um cenário prático. A escolha de um jogo \textit{multiplayer} estratégico permite grande liberadade na escolha e aplicação das tecnologias de \textit{backend} e \textit{frontend} a serem utilizadas. O desafio consistia em construir um sistema robusto, e que integrasse as diversas ferramentas exigidas pelo plano de ensino, gravação de partidas e o protocolo HTTPS.
 
 \subsection{Problema}
-O problema central do projeto foi desenvolver uma aplicação \textit{full-stack} que suportasse múltiplos modos de jogo (PvP online, PvP local e PvE contra IA), autenticação de usuários, comunicação em tempo real e funcionalidades de mídia, como \textit{videochat} P2P e gravação de partidas. A solução deveria seguir o padrão de projeto MVC (Model-View-Controller), ser responsiva (desktop e mobile) e atender a rigorosos requisitos de segurança e infraestrutura, incluindo o \textit{deploy} obrigatório em um servidor VPS-UFSC.
+O problema central do projeto foi desenvolver uma aplicação \textit{full-stack} que suportasse múltiplos modos de jogo (PvP online, PvP local e PvE contra IA), autenticação de usuários, comunicação em tempo real e funcionalidades de mídia, como a gravação de partidas. A solução deveria seguir o padrão de projeto MVC (Model-View-Controller), ser responsiva (desktop e mobile) e atender a rigorosos requisitos de segurança e infraestrutura, incluindo o \textit{deploy} obrigatório em um servidor VPS-UFSC.
 
 %\subsection{Trabalhos Relacionados}
 %TODO
@@ -191,9 +196,6 @@ MongoDB é um banco de dados NoSQL orientado a documentos, que armazena dados em
 
 \subsection{WebSocket}
 O protocolo WebSocket fornece um canal de comunicação bidirecional e \textit{full-duplex} sobre uma única conexão TCP. Diferente do ciclo de requisição-resposta do HTTP, o WebSocket mantém uma conexão persistente, permitindo que o servidor envie dados ao cliente proativamente. Esta tecnologia é a base para as funcionalidades em tempo real do projeto, como o chat, o \textit{lobby} e a sincronização dos movimentos no tabuleiro.
-
-\subsection{WebRTC (Web Real-Time Communication)}
-WebRTC é um projeto de código aberto e API que permite a comunicação de áudio, vídeo e dados em tempo real (P2P) diretamente entre navegadores, sem a necessidade de \textit{plugins} intermediários \cite{doc:webrtc}. No projeto, é utilizado para implementar a funcionalidade de \textit{videochat} entre os dois jogadores de uma partida.
 
 \subsection{FFMPEG}
 FFMPEG é uma suíte de \textit{software} livre para manipulação, gravação, conversão e \textit{streaming} de áudio e vídeo \cite{doc:ffmpeg}. Conforme os requisitos do projeto, o FFMPEG é utilizado no \textit{backend} para processar e gravar as partidas no formato WebM, que são subsequentemente armazenadas no MongoDB GridFS.
@@ -273,11 +275,11 @@ O projeto é desenhado para ser executado com Docker e Docker Compose, simplific
 O processo de \textit{deploy} em modo de produção é feito com o Docker Compose, que constrói e orquestra os contêineres do \textit{backend}, \textit{frontend} (servido via Nginx) e MongoDB.
 
 \begin{lstlisting}[language=Bash, caption={Comandos para execução em modo produção}]
-# Clone o repositorio #erro
+# Clone o repositorio
 git clone https://github.com/Coelho50/Gomoku.git
 cd Gomoku
 
-# Execute em modo producao (com Nginx) #erro
+# Execute em modo producao (com Nginx)
 docker-compose -f docker-compose.yml up -d --profile production
 \end{lstlisting}
 
@@ -330,7 +332,6 @@ A Figura \ref{fig:estrutura-backend} (placeholder) ilustra a árvore de diretór
 O projeto implementou com sucesso todas as funcionalidades requisitadas:
 \begin{itemize}
     \item \textbf{Gravação com FFMPEG:} O \verb|`ffmpeg_service.py`| gerencia a gravação de partidas, com APIs para iniciar, parar e listar gravações. Os vídeos são armazenados no MongoDB GridFS e podem ser acessados via \textit{streaming} por uma URL.
-    \item \textbf{Videochat com WebRTC:} O \verb|`webrtc_service.py`| atua como servidor de sinalização (via WebSocket) para estabelecer conexões P2P entre os jogadores, incluindo configuração de servidores STUN.
     \item \textbf{Sistema de Ranking ELO:} O \verb|`ranking_service.py`| calcula o ELO dos jogadores após cada partida online (Fator \verb|K=32|), armazena estatísticas e fornece \textit{endpoints} para um \textit{leaderboard} global.
     \item \textbf{Administração CRUD:} O `routers/admin.py` implementa um conjunto completo de rotas protegidas para gerenciamento de usuários, jogos e configurações do sistema.
     \item \textbf{Design Responsivo:} Conforme detalhado em \verb|`DESIGN_IMPLEMENTATION_SUMMARY.md`|, foi implementado um sistema de design responsivo completo, garantindo a usabilidade em dispositivos \textit{mobile} e \textit{desktop}.
@@ -350,7 +351,7 @@ As Figuras \ref{fig:tela-lobby} e \ref{fig:tela-jogo} (placeholders) mostram \te
 \centering
 % \includegraphics[width=1.0\columnwidth]{figs/tela-jogo.png}
 \fbox{Placeholder para Screenshot: Tela de Jogo}
-\caption{Interface da partida, exibindo o tabuleiro, o chat em tempo real e o componente de videochat.}
+\caption{Interface da partida, exibindo o tabuleiro, o chat em tempo real}
 \label{fig:tela-jogo}
 \end{figure}
 
@@ -384,7 +385,7 @@ A segurança foi um pilar do projeto, conforme os requisitos da disciplina:
 \label{sec:conclusao}
 O desenvolvimento do projeto Gomoku Web atingiu seus objetivos principais, entregando uma aplicação \textit{full-stack} robusta que cumpre os requisitos básicos do jogo, mas também implementa um conjunto de funcionalidades avançadas e complexas.
 
-A arquitetura escolhida, baseada em FastAPI para o \textit{backend} e React para o \textit{frontend}, provou ser altamente eficaz. O FastAPI gerenciou com excelência as operações assíncronas de WebSockets e as requisições da API, enquanto o React forneceu uma interface de usuário fluida e responsiva. A integração de WebRTC, FFMPEG e um sistema de ranking ELO demonstrou a capacidade de estender a aplicação com serviços de nível profissional.
+A arquitetura escolhida, baseada em FastAPI para o \textit{backend} e React para o \textit{frontend}, provou ser altamente eficaz. O FastAPI gerenciou com excelência as operações assíncronas de WebSockets e as requisições da API, enquanto o React forneceu uma interface de usuário fluida e responsiva. A integração de FFMPEG e um sistema de ranking ELO demonstrou a capacidade de estender a aplicação com serviços ao nível requisitado.
 
 Os desafios encontrados, especialmente na estabilidade da comunicação em tempo real e no \textit{design} responsivo, foram superados e resultaram em um sistema mais resiliente e polido.
 
@@ -417,9 +418,6 @@ A. O. Coelho e L. R. da S. Costa, "requirements.txt," \emph{Dependências do Bac
 
 \bibitem{doc:mongodb}
 \emph{MongoDB Documentation}, MongoDB Inc. [Online]. Disponível: \url{https://www.mongodb.com/docs/}
-
-\bibitem{doc:webrtc}
-\emph{WebRTC}, Google. [Online]. Disponível: \url{https://webrtc.org/}
 
 \bibitem{doc:ffmpeg}
 \emph{FFMPEG}, FFMPEG.org. [Online]. Disponível: \url{https://ffmpeg.org/}
