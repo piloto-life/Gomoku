@@ -167,8 +167,10 @@ A principal motivação do projeto foi aplicar os conceitos e técnicas abordado
 \subsection{Problema}
 O problema central do projeto foi desenvolver uma aplicação \textit{full-stack} que suportasse múltiplos modos de jogo (PvP online, PvP local e PvE contra IA), autenticação de usuários, comunicação em tempo real e funcionalidades de mídia, como a gravação de partidas. A solução deveria seguir o padrão de projeto MVC (Model-View-Controller), ser responsiva (desktop e mobile) e atender a diversos requisitos de segurança e infraestrutura, incluindo o \textit{deploy} obrigatório em um servidor VPS-UFSC.
 
-%\subsection{Trabalhos Relacionados}
-%TODO
+\subsection{Trabalhos Relacionados}
+A implementação computacional do Gomoku tem sido objeto de estudo tanto na engenharia de software quanto na inteligência artificial. Uma abordagem seminal foi apresentada por Freisleben \cite{freisleben:nn}, que desenvolveu uma rede neural capaz de aprender a jogar Gomoku através de treinamento supervisionado, demonstrando que arquiteturas conexionistas poderiam capturar as nuances estratégicas do jogo sem depender exclusivamente de algoritmos de busca exaustiva.
+
+Enquanto o trabalho de Freisleben foca na otimização do agente inteligente e na predição de movimentos baseada em padrões aprendidos, este projeto adota uma abordagem de sistemas distribuídos. O foco aqui não é apenas a eficiência algorítmica da IA, mas a construção de uma arquitetura \textit{web} robusta que integre persistência de dados, comunicação em tempo real via WebSockets e processamento de mídia.
 
 \subsection{Contribuição do Trabalho}
 A principal contribuição deste trabalho é a integração bem-sucedida de todas as tecnologias apresentadas durante o semestre letivo. Demonstra-se uma arquitetura desacoplada onde o \textit{backend} atua como uma API RESTful e um servidor WebSocket, o \textit{frontend} (React) utiliza esses serviços e os traduz de forma visual, e o MongoDB gerencia a persistência de dados.
@@ -386,6 +388,9 @@ O desenvolvimento do projeto Gomoku Web atingiu seus objetivos principais, entre
 W. B. da Silva, "Instruções para o PW" \emph{Moodle UFSC - INE5646}, 2025. Acessado em: 05/11/2025. [Disponível em: Gomoku/docs/projeto.md]
 
 % arquivos de referencia do texto
+\bibitem{freisleben:nn}
+B. Freisleben, "A neural network that learns to play five-in-a-row," in \emph{Proceedings of 1994 IEEE International Conference on Neural Networks (ICNN'94)}, vol. 7, pp. 4602-4606, 1994.
+
 \bibitem{func_impl}
 A. O. Coelho e L. R. da S. Costa, "FUNCIONALIDADES IMPLEMENTADAS - Gomoku Project," \emph{Documentação do Projeto}, 2025. [Disponível em: \verb|Gomoku/FUNCIONALIDADES_IMPLEMENTADAS.md|]
 
