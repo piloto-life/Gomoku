@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2025.11.5)  24 NOV 2025 17:07
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2025.11.5)  24 NOV 2025 17:22
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -674,89 +674,105 @@ Underfull \hbox (badness 10000) in paragraph at lines 318--319
 \T1/ptm/m/n/10 abs-tra-ída em [][]\T1/pcr/m/n/10 backend/services/[]\T1/ptm/m/n/10 , como
  []
 
+<figs/backend_tree.png, id=169, 219.82124pt x 319.1925pt>
+File: figs/backend_tree.png Graphic file (type png)
+<use figs/backend_tree.png>
+Package pdftex.def Info: figs/backend_tree.png  used on input line 325.
+(pdftex.def)             Requested size: 126.0pt x 182.95467pt.
 
-Underfull \hbox (badness 10000) in paragraph at lines 334--335
+Underfull \hbox (badness 10000) in paragraph at lines 333--334
 []\T1/ptm/b/n/10 Gravação com FFM-PEG: \T1/ptm/m/n/10 O
  []
 
 
-Underfull \hbox (badness 3989) in paragraph at lines 334--335
+Underfull \hbox (badness 3989) in paragraph at lines 333--334
 [][]\T1/pcr/m/n/10 `ffmpeg_service.py` []\T1/ptm/m/n/10 ge-ren-cia a gra-va-ção de
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 335--336
+Underfull \hbox (badness 10000) in paragraph at lines 334--335
 []\T1/ptm/b/n/10 Sistema de Ran-king ELO: \T1/ptm/m/n/10 O
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 335--336
+Underfull \hbox (badness 10000) in paragraph at lines 334--335
 [][]\T1/pcr/m/n/10 `ranking_service.py` []\T1/ptm/m/n/10 cal-cula o ELO dos
  []
 
 
-Underfull \hbox (badness 3179) in paragraph at lines 335--336
+Underfull \hbox (badness 3179) in paragraph at lines 334--335
 \T1/ptm/m/n/10 jo-ga-do-res após cada par-tida on-line (Fa-tor [][]\T1/pcr/m/n/10 K=32[]\T1/ptm/m/n/10 ),
  []
 
 
-Underfull \hbox (badness 2393) in paragraph at lines 335--336
+Underfull \hbox (badness 2393) in paragraph at lines 334--335
 \T1/ptm/m/n/10 ar-ma-zena es-ta-tís-ti-cas e for-nece \T1/ptm/m/it/10 end-po-ints \T1/ptm/m/n/10 para um
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 337--338
+Underfull \hbox (badness 10000) in paragraph at lines 336--337
 []\T1/ptm/b/n/10 Design Res-pon-sivo: \T1/ptm/m/n/10 Con-forme de-ta-lhado em
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 337--338
+Underfull \hbox (badness 10000) in paragraph at lines 336--337
 [][]\T1/pcr/m/n/10 `DESIGN_IMPLEMENTATION_SUMMARY.md`[]\T1/ptm/m/n/10 ,
  []
 
 
-Underfull \hbox (badness 2662) in paragraph at lines 337--338
+Underfull \hbox (badness 2662) in paragraph at lines 336--337
 \T1/ptm/m/n/10 com-pleto, ga-ran-tindo a usa-bi-li-dade em dis-po-si-ti-vos
  []
 
+<figs/lobby.png, id=173, 871.00406pt x 757.32938pt>
+File: figs/lobby.png Graphic file (type png)
+<use figs/lobby.png>
+Package pdftex.def Info: figs/lobby.png  used on input line 343.
+(pdftex.def)             Requested size: 252.0pt x 219.11143pt.
+<figs/brasao_UFSC_vertical_sigla.pdf, id=174, 348.46185pt x 480.11371pt>
+File: figs/brasao_UFSC_vertical_sigla.pdf Graphic file (type pdf)
+<use figs/brasao_UFSC_vertical_sigla.pdf>
+Package pdftex.def Info: figs/brasao_UFSC_vertical_sigla.pdf  used on input line 350.
+(pdftex.def)             Requested size: 201.60077pt x 277.77017pt.
 
-Underfull \hbox (badness 10000) in paragraph at lines 365--366
+Underfull \vbox (badness 2035) has occurred while \output is active []
+
+ [3 <./figs/backend_tree.png> <./figs/lobby.png> <./figs/brasao_UFSC_vertical_sigla.pdf>]
+Underfull \hbox (badness 10000) in paragraph at lines 362--363
 []\T1/ptm/b/n/10 Matchmaking com Re-co-ne-xão: \T1/ptm/m/n/10 Jo-ga-do-res
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 365--366
+Underfull \hbox (badness 10000) in paragraph at lines 362--363
 \T1/ptm/m/n/10 de-sa-pa-re-ciam da fila ao re-co-nec-tar. A fun-ção
  []
 
-[3]
-Underfull \hbox (badness 2772) in paragraph at lines 400--401
+
+Underfull \hbox (badness 2772) in paragraph at lines 397--398
 []\T1/ptm/m/n/10 A. O. Co-e-lho e L. R. da S. Costa, "FUN-CI-O-
  []
 
 
-Underfull \hbox (badness 3769) in paragraph at lines 400--401
+Underfull \hbox (badness 3769) in paragraph at lines 397--398
 \T1/ptm/m/n/10 NA-LI-DA-DES IM-PLE-MEN-TA-DAS - Go-moku Pro-
  []
 
 
-Overfull \hbox (6.98987pt too wide) in paragraph at lines 400--401
+Overfull \hbox (6.98987pt too wide) in paragraph at lines 397--398
 [][]\T1/pcr/m/n/10 Gomoku/FUNCIONALIDADES_IMPLEMENTADAS.md[]\T1/ptm/m/n/10 ] 
  []
 
 
-Underfull \hbox (badness 5008) in paragraph at lines 406--407
+Underfull \hbox (badness 5008) in paragraph at lines 403--404
 []\T1/ptm/m/n/10 A. O. Co-e-lho e L. R. da S. Costa, "re-qui-re-
  []
 
 
-Underfull \hbox (badness 2980) in paragraph at lines 417--418
+Underfull \hbox (badness 2980) in paragraph at lines 414--415
 []\T1/ptm/m/it/10 TypeScript\T1/ptm/m/n/10 , Mi-cro-soft. [On-line]. Dis-po-ní-vel: [][]$https : / /
  []
 
-[4
-
-] (./Gomoku.aux)
+[4] (./Gomoku.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2025-10-24>
@@ -765,18 +781,18 @@ Package rerunfilecheck Info: File `Gomoku.out' has not changed.
 (rerunfilecheck)             Checksum: 9A30AE604C2BEDE27C5A8E4C59949DEE;4714.
  ) 
 Here is how much of TeX's memory you used:
- 21314 strings out of 467538
- 374217 string characters out of 5423725
- 1045108 words of memory out of 5000000
- 49796 multiletter control sequences out of 15000+600000
+ 21335 strings out of 467538
+ 374875 string characters out of 5423725
+ 1045102 words of memory out of 5000000
+ 49817 multiletter control sequences out of 15000+600000
  747530 words of font info for 151 fonts, out of 8000000 for 9000
  1144 hyphenation exceptions out of 8191
  69i,8n,90p,894b,1249s stack positions out of 10000i,1000n,20000p,200000b,200000s
 <c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb><c:/texlive/2025/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb><c:/texlive/2025/texmf-dist/fonts/type1/urw/times/utmb8a.pfb><c:/texlive/2025/texmf-dist/fonts/type1/urw/times/utmbi8a.pfb><c:/texlive/2025/texmf-dist/fonts/type1/urw/times/utmr8a.pfb><c:/texlive/2025/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on Gomoku.pdf (4 pages, 119600 bytes).
+Output written on Gomoku.pdf (4 pages, 905924 bytes).
 PDF statistics:
- 245 PDF objects out of 1000 (max. 8388607)
- 222 compressed objects within 3 object streams
+ 259 PDF objects out of 1000 (max. 8388607)
+ 229 compressed objects within 3 object streams
  65 named destinations out of 1000 (max. 500000)
- 225 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 240 words of extra memory for PDF output out of 10000 (max. 10000000)
 

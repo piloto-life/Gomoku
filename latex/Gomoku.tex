@@ -43,7 +43,7 @@
 
 \usepackage[numbers,sort&compress,square]{natbib} %% e.g., [2-5]
 
-%% --- CORES DO CÓDIGO (Restauradas) ---
+%% --- CORES DO CÓDIGO (Sintaxe Colorida) ---
 \definecolor{codegreen}{rgb}{0,0.6,0}
 \definecolor{codegray}{rgb}{0.5,0.5,0.5}
 \definecolor{codepurple}{rgb}{0.58,0,0.82}
@@ -51,10 +51,10 @@
 
 \lstdefinestyle{mystyle}{
     backgroundcolor=\color{backcolour},   
-    commentstyle=\color{codegreen},      % Verde restaurado
-    keywordstyle=\color{magenta},        % Magenta restaurado
+    commentstyle=\color{codegreen},      
+    keywordstyle=\color{magenta},        
     numberstyle=\tiny\color{codegray},
-    stringstyle=\color{codepurple},      % Roxo restaurado
+    stringstyle=\color{codepurple},      
     basicstyle=\ttfamily\footnotesize,
     breakatwhitespace=false,         
     breaklines=true,                 
@@ -94,8 +94,8 @@
 \hypersetup{
   colorlinks=true,
   urlcolor=blue,      % Links externos em azul
-  linkcolor=black,    % Links internos (Figuras/Seções) em PRETO (remove vermelho)
-  citecolor=black,    % Citações [1] em PRETO (remove verde)
+  linkcolor=black,    % Links internos (Figuras/Seções) em PRETO
+  citecolor=black,    % Citações [1] em PRETO
   filecolor=black,
   pdfborder={0 0 0},
 }
@@ -318,12 +318,11 @@ O \textit{backend} foi estruturado seguindo o padrão MVC, adaptado para o FastA
     \item \textbf{Services:} A lógica de negócios complexa (ex: cálculo de ELO, gravação FFMPEG) foi abstraída em \verb|backend/services/|, como \verb|ranking_service.py| e \verb|ffmpeg_service.py|.
 \end{itemize}
 
-A Figura \ref{fig:estrutura-backend} (placeholder) ilustra a árvore de diretórios principal do \textit{backend}.
+A Figura \ref{fig:estrutura-backend} ilustra a árvore de diretórios principal do \textit{backend}.
 
 \begin{figure}[!htbp]
 \centering
-% \includegraphics[width=1.0\columnwidth]{figs/estrutura-backend.png}
-\fbox{Placeholder para Figura: Árvore de Diretórios do Backend}
+\includegraphics[width=0.5\columnwidth]{figs/backend_tree.png}
 \caption{Estrutura de diretórios do serviço de backend.}
 \label{fig:estrutura-backend}
 \end{figure}
@@ -337,21 +336,19 @@ O projeto implementou com sucesso todas as funcionalidades requisitadas:
     \item \textbf{Design Responsivo:} Conforme detalhado em \verb|`DESIGN_IMPLEMENTATION_SUMMARY.md`|, foi implementado um sistema de design responsivo completo, garantindo a usabilidade em dispositivos \textit{mobile} e \textit{desktop}.
 \end{itemize}
 
-As Figuras \ref{fig:tela-lobby} e \ref{fig:tela-jogo} (placeholders) mostram \textit{screenshots} da aplicação final.
+As Figuras \ref{fig:tela-lobby} e \ref{fig:tela-jogo} mostram \textit{screenshots} da aplicação final.
 
 \begin{figure}[!htbp]
 \centering
-% \includegraphics[width=1.0\columnwidth]{figs/tela-lobby.png}
-\fbox{Placeholder para Screenshot: Tela do Lobby}
+\includegraphics[width=1.0\columnwidth]{figs/lobby.png}
 \caption{Interface do lobby de jogos, mostrando a seleção de modo de jogo e a lista de jogadores online.}
 \label{fig:tela-lobby}
 \end{figure}
 
 \begin{figure}[!htbp]
 \centering
-% \includegraphics[width=1.0\columnwidth]{figs/tela-jogo.png}
-\fbox{Placeholder para Screenshot: Tela de Jogo}
-\caption{Interface da partida, exibindo o tabuleiro, o chat em tempo real}
+\includegraphics[width=0.8\columnwidth]{figs/brasao_UFSC_vertical_sigla.pdf}
+\caption{Interface da partida (Imagem ilustrativa com Brasão UFSC).}
 \label{fig:tela-jogo}
 \end{figure}
 

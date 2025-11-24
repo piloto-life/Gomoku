@@ -1,9 +1,9 @@
 # Fdb version 4
-["pdflatex"] 1764014859.8566 "c:/Users/alec-/Desktop/Gomoku/latex/Gomoku.tex" "Gomoku.pdf" "Gomoku" 1764014861.52474 0
-  "Gomoku.aux" 1764014861 6496 05d62a29283641a3d2e1c3a2a2f9c3cd "pdflatex"
-  "Gomoku.out" 1764014861 4714 9a30ae604c2bede27c5a8e4c59949dee "pdflatex"
-  "Gomoku.tex" 1764014858 24282 b9246412fa2c3097356e9dc3df535c9d ""
-  "c:/Users/alec-/Desktop/Gomoku/latex/Gomoku.tex" 1764014858 24282 b9246412fa2c3097356e9dc3df535c9d ""
+["pdflatex"] 1764015760.11645 "c:/Users/alec-/Desktop/Gomoku/latex/Gomoku.tex" "Gomoku.pdf" "Gomoku" 1764015761.77456 0
+  "Gomoku.aux" 1764015761 6485 2916057ed2a28c86f21a98ec7abcb345 "pdflatex"
+  "Gomoku.out" 1764015761 4714 9a30ae604c2bede27c5a8e4c59949dee "pdflatex"
+  "Gomoku.tex" 1764015757 23998 ee90705344df49d19386f32bef1c2c03 ""
+  "c:/Users/alec-/Desktop/Gomoku/latex/Gomoku.tex" 1764015757 23998 ee90705344df49d19386f32bef1c2c03 ""
   "c:/texlive/2025/texmf-dist/fonts/enc/dvips/base/8r.enc" 1762306391 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "c:/texlive/2025/texmf-dist/fonts/map/fontname/texfonts.map" 1762306998 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "c:/texlive/2025/texmf-dist/fonts/tfm/adobe/courier/pcrr8r.tfm" 1762305958 1292 bd42be2f344128bff6d35d98474adfe3 ""
@@ -168,6 +168,9 @@
   "c:/texlive/2025/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1762314505 5574345 9e0538e80e24c9ae9ee679f6f1bbacd7 ""
   "c:/texlive/2025/texmf-var/web2c/pdftex/pdflatex.fmt" 1762314665 3635465 7e48ef954c8d2f87b9aaae131f529a2e ""
   "c:/texlive/2025/texmf.cnf" 1762314479 713 e69b156964470283e0530f5060668171 ""
+  "figs/backend_tree.png" 1764015528 32032 e5dc8f39ba68b7b8069bf5d6e637d077 ""
+  "figs/brasao_UFSC_vertical_sigla.pdf" 1764014971 697234 6e20c450fc1f6304240ed9811504107c ""
+  "figs/lobby.png" 1764015087 109688 2b2388aa0cd3d532841d0589f9c6d19d ""
   (generated)
   "Gomoku.aux"
   "Gomoku.log"
