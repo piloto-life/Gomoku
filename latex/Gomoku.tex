@@ -258,6 +258,47 @@ React Router & Roteamento de páginas \\
 \end{tabular}
 \end{table}
 
+\subsection{Estrutura do Projeto (MVC)}
+O \textit{backend} foi estruturado seguindo o padrão MVC, adaptado para o FastAPI:
+\begin{itemize}
+    \item \textbf{Models:} Definidos em `backend/models/`, usando Pydantic para validação de dados de API e classes para os modelos do MongoDB.
+    \item \textbf{Views (Templates):} O \textit{backend} é \textit{headless} (sem \textit{view}), sendo o React a camada de visualização desacoplada.
+    \item \textbf{Controllers (Rotas):} Definidos em `backend/routers/`. Cada arquivo (e.g. `auth.py`, `games.py`, `websocket.py`) agrupa a lógica de negócios para um conjunto de \textit{endpoints}, recebendo requisições, interagindo com os serviços e retornando respostas JSON.
+    \item \textbf{Services:} A lógica de negócios complexa (ex: cálculo de ELO, gravação FFMPEG) foi abstraída em \verb|backend/services/|, como \verb|ranking_service.py| e \verb|ffmpeg_service.py|.
+    \item \textbf{Game Manager:} Singleton em memória (\texttt{game\_manager.py}) que gerencia a fila de \textit{matchmaking} e estados transitórios antes da persistência no banco.
+\end{itemize}
+
+A Figura \ref{fig:estrutura-backend} ilustra a árvore de diretórios principal do \textit{backend}.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.5\columnwidth]{figs/backend_tree.png}
+\caption{Estrutura de diretórios do serviço de backend.}
+\label{fig:estrutura-backend}
+\end{figure}
+
+
+\subsection{Roteiro de Pacotes}
+Além dos \textit{frameworks} principais, o projeto utiliza um ecossistema de bibliotecas específico para implementação de todos os requisitos sem conflitos.
+
+\subsubsection{Backend (Python)}
+As dependências gerenciadas pelo \texttt{pip} e listadas no \texttt{requirements.txt} incluem:
+\begin{itemize}
+    \item \textbf{Motor:} Driver assíncrono para MongoDB, essencial para manter a natureza não-bloqueante do FastAPI durante operações de banco de dados.
+    \item \textbf{Python-jose:} Biblioteca utilizada para a criação, assinatura e verificação de tokens JWT (JSON Web Tokens) no processo de autenticação.
+    \item \textbf{Passlib [bcrypt]:} Responsável pelo \textit{hashing} seguro e verificação de senhas de usuários, garantindo que credenciais não sejam armazenadas em texto plano.
+    \item \textbf{FFmpeg-python:} \textit{Wrapper} que permite a orquestração de comandos do FFMPEG diretamente via código Python para o processamento de vídeos das partidas.
+    \item \textbf{Pydantic:} Fundamental para a validação de dados, serialização e definição de esquemas de entrada e saída da API.
+\end{itemize}
+
+\subsubsection{Frontend (Node.js)}
+No ecossistema JavaScript/TypeScript, as principais bibliotecas incluem:
+\begin{itemize}
+    \item \textbf{React Router Dom:} Gerencia a navegação e o roteamento do lado do cliente (\textit{Client-Side Routing}), permitindo a construção de uma \textit{Single Page Application} (SPA) fluida.
+    \item \textbf{Axios:} Cliente HTTP baseado em \textit{promises}, utilizado para realizar todas as requisições assíncronas para a API REST do \textit{backend}.
+    \item \textbf{TypeScript:} Adiciona tipagem estática ao projeto, aumentando a segurança do código e facilitando a manutenção e refatoração.
+\end{itemize}
+
 \subsection{Softwares e Roteiro de Instalação}
 O projeto é desenhado para ser executado com Docker e Docker Compose, simplificando a configuração do ambiente.
 
@@ -306,25 +347,6 @@ docker-compose --profile debug up
 
 Esta seção apresenta os resultados da implementação, a estrutura final do projeto, os problemas encontrados durante o desenvolvimento e as soluções de segurança aplicadas.
 
-\subsection{Estrutura do Projeto (MVC)}
-O \textit{backend} foi estruturado seguindo o padrão MVC, adaptado para o FastAPI:
-\begin{itemize}
-    \item \textbf{Models:} Definidos em `backend/models/`, usando Pydantic para validação de dados de API e classes para os modelos do MongoDB.
-    \item \textbf{Views (Templates):} O \textit{backend} é \textit{headless} (sem \textit{view}), sendo o React a camada de visualização desacoplada.
-    \item \textbf{Controllers (Rotas):} Definidos em `backend/routers/`. Cada arquivo (e.g. `auth.py`, `games.py`, `websocket.py`) agrupa a lógica de negócios para um conjunto de \textit{endpoints}, recebendo requisições, interagindo com os serviços e retornando respostas JSON.
-    \item \textbf{Services:} A lógica de negócios complexa (ex: cálculo de ELO, gravação FFMPEG) foi abstraída em \verb|backend/services/|, como \verb|ranking_service.py| e \verb|ffmpeg_service.py|.
-    \item \textbf{Game Manager:} Singleton em memória (\texttt{game\_manager.py}) que gerencia a fila de \textit{matchmaking} e estados transitórios antes da persistência no banco.
-\end{itemize}
-
-A Figura \ref{fig:estrutura-backend} ilustra a árvore de diretórios principal do \textit{backend}.
-
-\begin{figure}[!htbp]
-\centering
-\includegraphics[width=0.5\columnwidth]{figs/backend_tree.png}
-\caption{Estrutura de diretórios do serviço de backend.}
-\label{fig:estrutura-backend}
-\end{figure}
-
 \subsection{Funcionalidades Implementadas}
 O projeto implementou com sucesso todas as funcionalidades requisitadas:
 \begin{itemize}
@@ -363,8 +385,14 @@ Durante o desenvolvimento, diversos desafios técnicos surgiram:
     \item \textbf{Consistência de Estado no Lobby:} Jogos abandonados permaneciam listados. A solução foi implementar um \textit{garbage collector} acionado por eventos de desconexão do WebSocket que verifica salas vazias e atualiza o status no MongoDB atomicamente.
 \end{itemize}
 
+\subsection{Testes de Vulnerabilidade}
+Para validar a robustez das implementações de segurança, a aplicação foi submetida a testes de intrusão controlados utilizando ferramentas padrão da indústria.
 
-\subsection{Vulnerabilidades e Soluções de Segurança}
+O \textit{Burp Suite} foi utilizado como um \textit{proxy} de interceptação para analisar o tráfego HTTP e WebSocket entre o cliente React e o servidor FastAPI. Foram realizados testes de manipulação de dados em tempo real (\textit{Man-in-the-Middle}), onde \textit{payloads} JSON enviados via WebSocket foram interceptados e modificados na tentativa de executar movimentos ilegais no tabuleiro ou personificar outros jogadores. O sistema demonstrou resiliência, com o \textit{backend} validando corretamente a integridade das mensagens e rejeitando dados que não correspondiam ao estado atual do jogo ou à assinatura do \textit{token} JWT.
+
+Adicionalmente, utilizou-se a ferramenta \textit{Surfshark VPN} para simular conexões a partir de múltiplos endereços IP e localizações geográficas distintas. O objetivo foi verificar a estabilidade da conexão persistente (WebSocket) sob latências variadas e testar se o servidor expunha informações sensíveis da infraestrutura interna (como IPs reais da rede Docker) durante trocas de rota. Os testes confirmaram que o Nginx atuou como \textit{gateway}, anonimizando a topologia da rede interna.
+
+\subsection{Soluções de Segurança}
 A segurança foi um pilar do projeto, conforme os requisitos da disciplina:
 \begin{itemize}
     \item \textbf{Autenticação:} Implementada com JSON Web Tokens (JWT), utilizando \textit{tokens} de acesso (curta duração) e \textit{refresh tokens} (longa duração) armazenados de forma segura.
@@ -374,12 +402,69 @@ A segurança foi um pilar do projeto, conforme os requisitos da disciplina:
     \item \textbf{XSS/CSRF:} Medidas de sanitização de \textit{inputs} no \textit{frontend} (especialmente em campos de chat) e \textit{headers} de segurança (via Nginx/Helmet.js) foram planejadas para prevenir XSS e CSRF.
 \end{itemize}
 
+\subsection{Estrutura de Arquivos do Projeto}
+A estrutura final de arquivos do projeto, após a exclusão de dependências e arquivos de configuração de ambiente local, organiza-se da seguinte maneira, evidenciando a separação clara entre \textit{frontend}, \textit{backend} e infraestrutura:
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+Gomoku/
+|-- backend/
+|   |-- logic/
+|   |   |-- game_logic.py
+|   |-- models/
+|   |   |-- game.py
+|   |   |-- user.py
+|   |   |-- database.py
+|   |-- routers/
+|   |   |-- auth.py
+|   |   |-- games.py
+|   |   |-- lobby.py
+|   |   |-- websocket.py
+|   |-- services/
+|   |   |-- ffmpeg_service.py
+|   |   |-- ranking_service.py
+|   |-- app.py
+|   |-- database.py
+|   |-- game_manager.py
+|   |-- main.py
+|   |-- requirements.txt
+|-- frontend/
+|   |-- public/
+|   |-- src/
+|   |   |-- components/
+|   |   |   |-- GameBoard.tsx
+|   |   |   |-- GameChat.tsx
+|   |   |   |-- ...
+|   |   |-- contexts/
+|   |   |   |-- AuthContext.tsx
+|   |   |   |-- GameWebSocketContext.tsx
+|   |   |-- hooks/
+|   |   |   |-- useGameWebSocket.ts
+|   |   |-- pages/
+|   |   |   |-- Game.tsx
+|   |   |   |-- Lobby.tsx
+|   |   |   |-- Login.tsx
+|   |   |-- services/
+|   |   |   |-- api.ts
+|   |   |-- App.tsx
+|   |   |-- index.tsx
+|   |-- Dockerfile
+|   |-- package.json
+|   |-- tsconfig.json
+|-- nginx/
+|   |-- nginx.conf
+|-- tests/
+|-- docker-compose.yml
+|-- Makefile
+|-- README.md
+\end{lstlisting}
+
 
 %%------------------------------------------------------
 %% Section
 \section{Conclusão}
 \label{sec:conclusao}
 O desenvolvimento do projeto Gomoku Web atingiu seus objetivos principais, entregando uma aplicação \textit{full-stack} robusta que cumpre os requisitos básicos do jogo, mas também implementa um conjunto de funcionalidades avançadas e complexas. A arquitetura escolhida, baseada em FastAPI para o \textit{backend} e React para o \textit{frontend}, provou ser altamente eficaz. O FastAPI gerenciou com excelência as operações assíncronas de WebSockets e as requisições da API, enquanto o React forneceu uma interface de usuário fluida e responsiva. A integração de FFMPEG e um sistema de ranking ELO demonstrou a capacidade de estender a aplicação com serviços ao nível requisitado. Os desafios encontrados, especialmente na estabilidade da comunicação em tempo real e no \textit{design} responsivo, foram superados e resultaram em um sistema mais resiliente e polido.
+
 
 \begin{thebibliography}{10} 
 

@@ -1,682 +1,210 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
 	<head>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-		<title>Apresentação Servidor Gomoku</title>
+		<title>Gomoku - Projeto Web UFSC</title>
 
 		<link rel="stylesheet" href="dist/reset.css">
 		<link rel="stylesheet" href="dist/reveal.css">
-		<link rel="stylesheet" href="dist/theme/black.css">
+		
+		<link rel="stylesheet" href="dist/theme/white.css">
 
 		<link rel="stylesheet" href="plugin/highlight/monokai.css">
 
 		<style>
-			.reveal {
-				font-size: 28px;
-			}
-			.reveal h1 {
-				font-size: 2.5em;
-			}
-			.reveal h2 {
-				font-size: 1.6em;
-			}
-			.reveal h3 {
-				font-size: 1.15em;
-			}
-			.reveal p, .reveal li {
-				font-size: 0.9em;
-				line-height: 1.2;
-			}
-			.reveal pre code {
-				font-size: 1.2em !important;
-				line-height: 1.25;
-				max-height: 70vh;
-			}
-
+			.reveal { font-size: 24px; }
+			.reveal pre code { max-height: 550px; line-height: 1.3; box-shadow: 0 5px 15px rgba(0,0,0,0.15); }
+			.reveal h1, .reveal h2, .reveal h3 { color: #181818; }
+			.two-col { display: flex; justify-content: space-between; }
+			.two-col > div { width: 48%; }
 		</style>
 	</head>
 	<body>
 		<div class="reveal">
 			<div class="slides">
-				
+
 				<section>
-					<h3>Projeto Web</h3>
-					<h1>Gomoku</h1>
-					<p>Overview</p>
+					<h1>Gomoku Web</h1>
+					<h3>INE5646 - Programação para Web</h3>
+					<p>
+						<small>Alec Coelho & Luan Costa</small>
+					</p>
+					<p><small>UFSC - 2025</small></p>
 				</section>
 
 				<section>
-					<h3>Arquitetura Geral do Servidor</h3>
-					<p>O backend é uma aplicação Python construída com <strong>FastAPI</strong>.</p>
+					<h2>Arquitetura e Tecnologias</h2>
 					<ul>
-						<li><strong>Servidor de Aplicação:</strong> Uvicorn (executando o FastAPI).</li>
-						<li><strong>Banco de Dados:</strong> MongoDB para persistência de usuários, jogos e rankings.</li>
-						<li><strong>Comunicação:</strong>
-							<ul>
-								<li><strong>API REST (HTTP):</strong> Usada para ações síncronas (autenticação, CRUD de jogos, perfis).</li>
-								<li><strong>WebSockets (WS):</strong> Usada para toda a comunicação em tempo real (lobby, matchmaking, movimentos em jogo, chat).</li>
-							</ul>
-						</li>
-						<li><strong>Servidor Web (Produção):</strong> Nginx atua como proxy reverso no servidor Ubuntu.</li>
+						<li><strong>Frontend:</strong> React (TypeScript) </li>
+						<li><strong>Backend:</strong> FastAPI (Python) + Uvicorn</li>
+						<li><strong>Banco de Dados:</strong> MongoDB Atlas (Cluster Nuvem)</li>
+						<li><strong>Comunicação:</strong> API REST + WebSockets Nativos</li>
+						<li><strong>Infraestrutura:</strong> Docker Compose + Nginx Reverse Proxy</li>
 					</ul>
 				</section>
 
 				<section>
-					<h3>Ponto de Entrada: `backend/app.py`</h3>
-					<p>Define a instância principal do FastAPI, gerencia o ciclo de vida (startup/shutdown) e inclui os módulos de rotas.</p>
-					<pre><code class="language-python" data-trim data-noescape>
-						# Lifespan manager para eventos de startup/shutdown
-						@asynccontextmanager
-						async def lifespan(app: FastAPI):
-						    # Startup
-						    await connect_to_mongo()
-						    yield
-						    # Shutdown
-						    await close_mongo_connection()
+					<h3>Backend: WebSocket (v2)</h3>
+					<p>Normalização de mensagens e injeção de timestamp.</p>
+					<pre><code class="python" data-trim data-noescape>
+# backend/routers/websocket.py
 
-						# Cria a app FastAPI
-						app = FastAPI(
-						    title="Gomoku API",
-						    lifespan=lifespan
-						)
-
-						# ... (Middleware CORS para permitir o frontend) ...
-
-						# Inclui os routers
-						app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
-						app.include_router(users.router, prefix="/api/users", tags=["users"])
-						app.include_router(games_router, prefix="/api/games", tags=["games"])
-						app.include_router(websocket_games.router, prefix="/ws", tags=["websocket-games"])
-						app.include_router(lobby.router, prefix="/api/lobby", tags=["lobby"])
-						app.include_router(recordings.router, prefix="/api", tags=["recordings"])
-						app.include_router(ranking.router, prefix="/api", tags=["ranking"])
-						app.include_router(admin.router, prefix="/api", tags=["admin"])
+@router.websocket("/game/{game_id}")
+async def websocket_game_endpoint(websocket: WebSocket, game_id: str):
+    await manager.connect(websocket, game_id)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            msg = json.loads(data)
+            
+            # Padronização do tipo de mensagem
+            if msg.get("type") == "chat":
+                msg["type"] = "chat_message"
+                msg["timestamp"] = datetime.utcnow().isoformat()
+                
+                # Broadcast para todos (Jogadores + Espectadores)
+                await manager.broadcast_to_room(json.dumps(msg), game_id)
+                
+            elif msg.get("type") == "move":
+                await manager.broadcast_to_room(json.dumps(msg), game_id)
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, game_id)
 					</code></pre>
 				</section>
 
 				<section>
-					<h3>Conexão com DB: `backend/database.py`</h3>
-					<p>Gerencia a conexão com o MongoDB usando `motor`, um driver assíncrono.</p>
-					<pre><code class="language-python" data-trim data-noescape>
-						from motor.motor_asyncio import AsyncIOMotorClient
-						from models.database import database
-						import os
+					<h3>Frontend: useGameWebSocket</h3>
+					<p>Gerenciamento de conexão e eventos no cliente.</p>
+					<pre><code class="typescript" data-trim data-noescape>
+// frontend/src/hooks/useGameWebSocket.ts
 
-						async def connect_to_mongo():
-						    print("Conectando ao MongoDB...")
-						    try:
-						        mongodb_url = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
-						        database.client = AsyncIOMotorClient(
-						            mongodb_url,
-						            maxPoolSize=10,
-						            minPoolSize=5
-						        )
-						        database.db = database.client[os.getenv("MONGO_INITDB_DATABASE", "gomoku_db")]
-						        # Testa a conexão
-						        await database.db.command("ping")
-						        print("Conexão com MongoDB estabelecida com sucesso.")
-						    except Exception as e:
-						        print(f"Erro ao conectar com MongoDB: {e}")
-						        database.client = None
-						        database.db = None
+export const useGameWebSocket = ({ gameId, onMove, onChatMessage }: Props) => {
+  const connect = useCallback(() => {
+    // Conexão segura (WSS) via ambiente
+    const wsUrl = `${process.env.REACT_APP_WS_URL}/ws/game/${gameId}`;
+    const socket = new WebSocket(wsUrl);
 
-						async def close_mongo_connection():
-						    print("Fechando conexão com MongoDB...")
-						    if database.client:
-						        database.client.close()
-						        print("Conexão com MongoDB fechada.")
+    socket.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      
+      switch (message.type) {
+        case 'player_move':
+          onMove && onMove(message.move);
+          break;
+          
+        // Suporte a protocolo v2 (chat_message) e fallback
+        case 'chat_message':
+        case 'chat':
+          onChatMessage && onChatMessage(message);
+          break;
+      }
+    };
+  }, [gameId]);
+};
 					</code></pre>
 				</section>
 
 				<section>
-					<h3>Autenticação (REST): `backend/routers/auth.py`</h3>
-					<p>Rotas HTTP para registro e login. O login (<code>/api/auth/token</code>) gera o token JWT que será usado para autenticar WebSockets.</p>
-					<pre><code class="language-python" data-trim data-noescape>
-						@router.post("/token", response_model=Token)
-						async def login_for_access_token(
-						    form_data: OAuth2PasswordRequestForm = Depends()
-						):
-						    user = await authenticate_user(form_data.username, form_data.password)
-						    if not user:
-						        raise HTTPException(
-						            status_code=status.HTTP_401_UNAUTHORIZED,
-						            detail="Incorrect username or password",
-						            headers={"WWW-Authenticate": "Bearer"},
-						        )
-						    
-						    # Atualiza last_login
-						    users_collection = await get_collection("users")
-						    await users_collection.update_one(
-						        {"_id": user["_id"]},
-						        {"$set": {"last_login": datetime.utcnow()}}
-						    )
-						    
-						    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-						    access_token = create_access_token(
-						        data={"sub": str(user["_id"])}, expires_delta=access_token_expires
-						    )
-						    return {"access_token": access_token, "token_type": "bearer"}
+					<h3>Infraestrutura: Docker & Atlas</h3>
+					<p>Configuração de produção com banco em nuvem.</p>
+					<pre><code class="yaml" data-trim data-noescape>
+# docker-compose.yml
+
+services:
+  backend:
+    build: ./backend
+    environment:
+      # String de conexão para o Cluster Atlas
+      - MONGODB_URL=mongodb+srv://gomoku:***@gomoku.ggs5g4x.mongodb.net/
+      - ENVIRONMENT=production
+    ports: ["8000:8000"]
+
+  frontend:
+    build: ./frontend
+    depends_on: ["backend"]
+
+  nginx:
+    image: nginx:alpine
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
 					</code></pre>
 				</section>
 
 				<section>
-					<h3>Gerenciador de Conexões: `backend/routers/websocket_games.py`</h3>
-					<p>O <code>GameConnectionManager</code> é a classe central que mantém o estado de *quem* está online e *onde*.</p>
-					<pre><code class="language-python" data-trim data-noescape>
-						class GameConnectionManager:
-						    def __init__(self):
-						        # Salas de Jogo: game_id -> lista de WebSockets
-						        self.game_rooms: Dict[str, List[WebSocket]] = {}
-						        
-						        # Conexões de Usuário: user_id -> WebSocket (o mais recente)
-						        self.user_connections: Dict[str, WebSocket] = {}
-						        
-						        # Conexões Ativas: lista de todos os WebSockets conectados
-						        self.active_connections: List[WebSocket] = []
-						        
-						        # Jogadores Online: user_id -> UserPublic (dados do usuário)
-						        self.online_players: Dict[str, dict] = {}
-						        
-						        # Fila de Espera: lista de user_id
-						        self.waiting_queue: List[str] = []
+					<h3>Criação de Partida</h3>
+					<ul>
+						<li><strong>GameManager:</strong> Fila em memória RAM para <em>matchmaking</em> instantâneo.</li>
+						<li><strong>Persistência:</strong> Cria documento no MongoDB <em>antes</em> do início para garantir integridade.</li>
+					</ul>
+					<pre><code class="python" data-trim data-noescape>
+# backend/game_manager.py
 
-						    async def connect_to_lobby(self, websocket: WebSocket, user_id: str, user_public: dict):
-						        """Conecta um usuário ao lobby."""
-						        self.active_connections.append(websocket)
-						        self.user_connections[user_id] = websocket
-						        self.online_players[user_id] = user_public
-
-						    def disconnect_from_lobby(self, user_id: str):
-						        """Desconecta um usuário do lobby."""
-						        if user_id in self.user_connections:
-						            # ... (lógica de remoção)
-						        if user_id in self.online_players:
-						            del self.online_players[user_id]
-						        if user_id in self.waiting_queue:
-						            self.waiting_queue.remove(user_id)
+async def _create_db_game(self, p1: Dict, p2: Dict) -> Dict:
+    """Persistência Atômica no MongoDB"""
+    new_game = {
+        "players": { "black": p1, "white": p2 },
+        "status": "active",
+        "mode": "pvp-online",
+        "board": [[None] * 19] * 19,
+        "created_at": datetime.utcnow()
+    }
+    
+    # Garante ID real antes do broadcast
+    result = await games_collection.insert_one(new_game)
+    
+    return { "game_id": str(result.inserted_id), ... }
 					</code></pre>
 				</section>
 
 				<section>
-					<h3>Gerenciador de Conexões (Métodos de Broadcast)</h3>
-					<p>Métodos usados para notificar clientes sobre mudanças de estado.</p>
-					<pre><code class="language-python" data-trim data-noescape>
-						    async def broadcast_online_players(self):
-						        """Transmite a lista completa de jogadores online para todos no lobby."""
-						        players = []
-						        for player in self.online_players.values():
-						            # ... (copia e formata dados)
-						            players.append(player_copy)
-						        await self.broadcast_to_lobby({"type": "online_players", "players": players})
+					<h3>Garbage Collector</h3>
+					<ul>
+						<li><strong>Problema:</strong> Jogos abandonados poluíam a lista do Lobby.</li>
+						<li><strong>Solução:</strong> Monitoramento de desconexão WebSocket. Se a sala esvazia, o jogo é abortado.</li>
+					</ul>
+					<pre><code class="python" data-trim data-noescape>
+# backend/routers/websocket.py
 
-						    async def broadcast_queue_update(self):
-						        """Transmite a fila de espera atual para todos no lobby."""
-						        queue = []
-						        for uid in self.waiting_queue:
-						            if uid in self.online_players:
-						                # ... (copia e formata dados)
-						                queue.append(player_copy)
-						        await self.broadcast_to_lobby({"type": "queue_update", "queue": queue})
-
-						    async def broadcast_to_game(self, game_id: str, message: Dict, exclude_user: Optional[str] = None):
-						        """Transmite mensagem para todos os jogadores em um jogo específico."""
-						        # ... (lógica de envio)
-
-						    async def send_to_user(self, user_id: str, message: Dict):
-						        """Envia mensagem para um usuário específico."""
-						        # ... (lógica de envio)
+except WebSocketDisconnect:
+    manager.disconnect(websocket, game_id, user_id)
+    
+    # Garbage Collector: Verifica se a sala ficou vazia
+    if not manager.game_rooms.get(game_id):
+        # Marca jogo como abortado no banco
+        await games_collection.update_one(
+            {"_id": ObjectId(game_id), "status": "active"},
+            {"$set": {"status": "aborted"}}
+        )
+        # Força atualização da lista no Lobby
+        await manager.broadcast_to_lobby(json.dumps({"type": "update"}))
 					</code></pre>
 				</section>
 
 				<section>
-					<h3>Autenticação (WebSocket): `websocket_games.py`</h3>
-					<p>Função auxiliar que decodifica o token JWT (passado via query param) para identificar o usuário na conexão WebSocket.</p>
-					<pre><code class="language-python" data-trim data-noescape>
-						async def get_user_from_token(token: str) -> Optional[UserPublic]:
-						    """Get user from JWT token for WebSocket authentication"""
-						    try:
-						        # Importa chaves do router de auth
-						        from routers.auth import SECRET_KEY, ALGORITHM
-						        from jose import jwt, JWTError
-						        
-						        # Decodifica o token JWT
-						        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-						        user_id = payload.get("sub")
-						        
-						        if not user_id:
-						            return None
-						            
-						        users_collection = await get_collection("users")
-						        user_doc = await users_collection.find_one({"_id": ObjectId(user_id)})
-						        
-						        if not user_doc:
-						            return None
-						            
-						        user_doc['id'] = str(user_doc['_id'])
-						        del user_doc['_id']
-						        del user_doc['password_hash']  # Remove dados sensíveis
-						        
-						        return UserPublic(**user_doc)
-						    except Exception as e:
-						        print(f"WebSocket auth error: {e}")
-						        return None
-					</code></pre>
+					<h3>Recursos Avançados</h3>
+					<ul>
+						<li>
+							<strong>Modo Espectador:</strong>
+							<br>Suporte a múltiplos clientes na sala. Apenas <code>user_id</code> dos jogadores pode enviar movimentos, mas todos recebem o estado.
+						</li>
+						<br>
+						<li>
+							<strong>Gravação (FFMPEG):</strong>
+							<br>Backend processa histórico de movimentos e gera vídeo (.webm) ao final, servido via Nginx.
+						</li>
+					</ul>
 				</section>
 
 				<section>
-					<h3>WebSocket - Rota do Lobby (`/ws/lobby`)</h3>
-					<p>Endpoint principal para jogadores online. Trata a autenticação e conexão inicial.</p>
-					<pre><code class="language-python" data-trim data-noescape>
-						@router.websocket("/lobby")
-						async def websocket_lobby_token_endpoint(websocket: WebSocket):
-						    """WebSocket endpoint for lobby using JWT token authentication"""
-						    
-						    # ... (Extrai o token da query string) ...
-						    
-						    # Autentica o usuário ANTES de aceitar a conexão
-						    if not token:
-						        await websocket.close(code=1008, reason="Authentication token required")
-						        return
-						    
-						    user = await get_user_from_token(token)
-						    if not user:
-						        await websocket.close(code=1008, reason="Invalid authentication token")
-						        return
-						    
-						    # ... (Lógica para fechar conexão antiga se o usuário reconectar) ...
-						    
-						    # Aceita a nova conexão
-						    await websocket.accept()
-
-						    # Conecta ao lobby (registra no GameConnectionManager)
-						    await game_manager.connect_to_lobby(websocket, user.id, user.dict())
-						    
-						    # Envia atualizações para todos
-						    await game_manager.broadcast_to_lobby({"type": "player_joined", "user_id": user.id})
-						    await game_manager.broadcast_online_players()
-						    await game_manager.broadcast_queue_update()
-
-						    try:
-						        while True:
-						            data = await websocket.receive_text()
-						            # ... (processa mensagens recebidas, ex: join_queue)
-						    
-						    except WebSocketDisconnect:
-						        # ... (lógica de limpeza ao desconectar)
-					</code></pre>
-				</section>
-
-				<section>
-					<h3>Lobby - Lógica de Matchmaking (`/ws/lobby`)</h3>
-					<p>Dentro do loop `while True` do lobby, o servidor escuta por mensagens. A mais importante é <code>join_queue</code>.</p>
-					<pre><code class="language-python" data-trim data-noescape>
-						            if msg_type == "join_queue":
-						                # Adiciona usuário à fila se não estiver
-						                if user.id not in game_manager.waiting_queue:
-						                    game_manager.waiting_queue.append(user.id)
-						                    print(f"User {user.username} joined queue. Queue: {len(game_manager.waiting_queue)}")
-						                    await game_manager.broadcast_queue_update()
-						                    
-						                    # Se houver 2+ jogadores, inicia a partida
-						                    if len(game_manager.waiting_queue) >= 2:
-						                        p1_id = game_manager.waiting_queue.pop(0)
-						                        p2_id = game_manager.waiting_queue.pop(0)
-						                        p1 = game_manager.online_players.get(p1_id)
-						                        p2 = game_manager.online_players.get(p2_id)
-						                        
-						                        if p1 and p2:
-						                            print(f"Starting match between {p1.get('username')} and {p2.get('username')}")
-						                            
-						                            # Cria o jogo no banco de dados
-						                            games_collection = await get_collection("games")
-						                            game_doc = { ... } # (define o tabuleiro, players, etc)
-						                            result = await games_collection.insert_one(game_doc)
-						                            game_id = str(result.inserted_id)
-						                            
-						                            # Notifica ambos os jogadores
-						                            match_start_message_p1 = { "type": "game_start", ... }
-						                            await game_manager.send_to_user(p1_id, match_start_message_p1)
-						                            
-						                            match_start_message_p2 = { "type": "game_start", ... }
-						                            await game_manager.send_to_user(p2_id, match_start_message_p2)
-						                            
-						                            await game_manager.broadcast_queue_update()
-					</code></pre>
-				</section>
-
-				<section>
-					<h3>WebSocket - Rota do Jogo (`/ws/game/{game_id}`)</h3>
-					<p>Endpoint dedicado para uma partida específica. Valida se o usuário autenticado pertence a esta partida.</p>
-					<pre><code class="language-python" data-trim data-noescape>
-						@router.websocket("/game/{game_id}")
-						async def websocket_game_endpoint(
-						    websocket: WebSocket, 
-						    game_id: str,
-						    token: Optional[str] = Query(None)
-						):
-						    # ... (Aceita a conexão) ...
-						    
-						    # Autentica com o token
-						    if not token:
-						        await websocket.close(...)
-						        return
-						    
-						    user = await get_user_from_token(token)
-						    if not user:
-						        await websocket.close(...)
-						        return
-						    
-						    # Verifica se o jogo existe
-						    games_collection = await get_collection("games")
-						    game = await games_collection.find_one({"_id": ObjectId(game_id)})
-						    if not game:
-						        await websocket.close(code=1008, reason="Game not found")
-						        return
-						    
-						    # Verifica se o usuário está neste jogo
-						    user_in_game = (
-						        game.get("players", {}).get("black", {}).get("id") == user.id or
-						        game.get("players", {}).get("white", {}).get("id") == user.id
-						    )
-						    if not user_in_game:
-						        await websocket.close(code=1008, reason="User not authorized")
-						        return
-
-						    # Conecta o usuário à sala de jogo
-						    await game_manager.connect_to_game(websocket, game_id, user.id)
-						    
-						    # ... (Envia estado atual do jogo) ...
-						    # ... (Loop de mensagens: 'move', 'chat', 'ping') ...
-					</code></pre>
-				</section>
-
-				<section>
-					<h3>Jogo - Processamento de Movimentos (`/ws/game/...`)</h3>
-					<p>Dentro do loop `while True` da rota do jogo, o servidor processa as jogadas.</p>
-					<pre><code class="language-python" data-trim data-noescape>
-						        while True:
-						            data = await websocket.receive_text()
-						            message_data = json.loads(data)
-						            message_type = message_data.get("type")
-						            
-						            if message_type == "move":
-						                row = message_data.get("row")
-						                col = message_data.get("col")
-						                
-						                # ... (Busca jogo atual no DB) ...
-
-						                # Valida o movimento (se a casa está vazia)
-						                board = current_game.get("board", [])
-						                if (0 <= row < len(board) and 0 <= col < len(board[0]) and board[row][col] is None):
-						                    
-						                    # Determina a cor do jogador
-						                    player_color = ...
-						                    
-						                    # Verifica se é o turno do jogador
-						                    if current_game.get("current_player") != player_color:
-						                        await websocket.send_text(json.dumps({ "type": "error", "message": "Not your turn" }))
-						                        continue
-						                    
-						                    # Aplica a jogada
-						                    board[row][col] = player_color
-						                    next_player = "white" if player_color == "black" else "black"
-						                    
-						                    # Atualiza o jogo no DB
-						                    await games_collection.update_one(
-						                        {"_id": ObjectId(game_id)},
-						                        { "$set": { "board": board, "current_player": next_player, ... },
-						                          "$push": { "moves": { ... } } }
-						                    )
-						                    
-						                    # Transmite a jogada para o oponente
-						                    move_data = { "row": row, "col": col, "player": player_color, "next_player": next_player }
-						                    await game_manager.send_game_move(game_id, move_data, user.id)
-						                    
-						                    # Verifica se houve vencedor
-						                    if check_win(board, row, col):
-						                        await games_collection.update_one(
-						                            {"_id": ObjectId(game_id)},
-						                            {"$set": {"status": "finished", "winner": player_color}}
-						                        )
-						                        win_data = { "winner": player_color, ... }
-						                        await game_manager.send_game_event(game_id, "game_end", win_data)
-						            
-						            elif message_type == "chat":
-						                # ... (lógica de chat)
-					</code></pre>
-				</section>
-
-				<section>
-					<h3>API REST - Jogos não-online: `backend/routers/games.py`</h3>
-					<p>Para modos como PvE (Player vs. AI) ou PvP Local, é usada a API REST padrão, pois não há necessidade de comunicação em tempo real entre dois clientes distintos.</p>
-					<pre><code class="language-python" data-trim data-noescape>
-						# (Este arquivo é `games.py`, não `websocket_games.py`)
-						from services.game_logic import GameLogic, Position, PieceColor
-
-						router = APIRouter()
-						game_logic = GameLogic()
-
-						@router.post("/pve", response_model=Game)
-						async def create_game_pve(game_data: GameCreatePVE, current_user: UserDB = Depends(get_current_active_user)):
-						    # ... (Cria o documento do jogo no DB com status 'active') ...
-						    return game_doc
-
-						@router.post("/{game_id}/pve_move", response_model=Game)
-						async def make_move_pve(game_id: str, move: Move, current_user: UserDB = Depends(get_current_active_user)):
-						    # ... (Busca o jogo no DB) ...
-						    
-						    # 1. Processa a jogada do jogador humano
-						    pos = Position(row=move.row, col=move.col)
-						    if not game_logic.is_valid_move(board, pos):
-						        raise HTTPException(status_code=400, detail="Invalid move")
-						    
-						    game_logic.make_move(board, pos, PieceColor.BLACK)
-						    # ... (Salva jogada do humano no DB) ...
-						    
-						    # 2. Verifica se o humano venceu
-						    if game_logic.check_winner(board, pos, PieceColor.BLACK):
-						        # ... (Atualiza DB com vitória do humano) ...
-						        return updated_game
-						    
-						    # 3. Calcula e processa a jogada da IA
-						    ai_pos = game_logic.get_ai_move(board, difficulty=game.get("difficulty", "medium"))
-						    game_logic.make_move(board, ai_pos, PieceColor.WHITE)
-						    # ... (Salva jogada da IA no DB) ...
-						    
-						    # 4. Verifica se a IA venceu
-						    if game_logic.check_winner(board, ai_pos, PieceColor.WHITE):
-						        # ... (Atualiza DB com vitória da IA) ...
-						        return updated_game_with_ai_move
-						    
-						    return updated_game_with_ai_move
-					</code></pre>
-				</section>
-				
-				<section>
-					<h3>Lógica Pura do Jogo: `backend/services/game_logic.py`</h3>
-					<p>Esta classe contém *apenas* as regras do Gomoku. Ela não sabe sobre API, DB ou WebSockets. Isso facilita testes e manutenção.</p>
-					<pre><code class="language-python" data-trim data-noescape>
-						class GameLogic:
-						    def __init__(self):
-						        self.board_size = 19
-						        
-						    def is_valid_move(self, board: List[List[Optional[str]]], position: Position) -> bool:
-						        if position.row < 0 or position.row >= self.board_size:
-						            return False
-						        if position.col < 0 or position.col >= self.board_size:
-						            return False
-						        return board[position.row][position.col] is None # Verifica se está vazia
-						    
-						    def check_winner(self, board: List[List[Optional[str]]], last_position: Position, piece: PieceColor) -> Optional[PieceColor]:
-						        """Verifica se há um vencedor após a última jogada"""
-						        directions = [
-						            (0, 1),   # horizontal
-						            (1, 0),   # vertical
-						            (1, 1),   # diagonal
-						            (1, -1),  # anti-diagonal
-						        ]
-						        
-						        for dx, dy in directions:
-						            count = 1  # Conta a peça recém-colocada
-						            
-						            # Verifica direção positiva (até 4 casas)
-						            for i in range(1, 5):
-						                new_row = last_position.row + dx * i
-						                new_col = last_position.col + dy * i
-						                if (0 <= new_row < self.board_size and 0 <= new_col < self.board_size and 
-						                    board[new_row][new_col] == piece.value):
-						                    count += 1
-						                else:
-						                    break
-						            
-						            # Verifica direção negativa (até 4 casas)
-						            for i in range(1, 5):
-						                new_row = last_position.row - dx * i
-						                new_col = last_position.col - dy * i
-						                if (0 <= new_row < self.board_size and 0 <= new_col < self.board_size and 
-						                    board[new_row][new_col] == piece.value):
-						                    count += 1
-						                else:
-						                    break
-						            
-						            if count >= 5:
-						                return piece
-						        
-						        return None
-					</code></pre>
-				</section>
-
-				<section>
-					<h3>Lógica de IA: `backend/services/game_logic.py`</h3>
-					<p>A IA (PvE) também faz parte da `GameLogic`. A estratégia "medium" prioriza vencer e, em seguida, bloquear o oponente.</p>
-					<pre><code class="language-python" data-trim data-noescape>
-						    def get_ai_move(self, board: List[List[Optional[str]]], difficulty: str = "medium") -> Position:
-						        """Lógica da IA com diferentes dificuldades"""
-						        if difficulty == "easy":
-						            return self._get_random_move(board)
-						        elif difficulty == "medium":
-						            return self._get_strategic_move(board)
-						        # ... (etc)
-						    
-						    def _get_strategic_move(self, board: List[List[Optional[str]]]) -> Position:
-						        """IA Estratégica que prioriza vencer e bloquear"""
-						        ai_piece = PieceColor.WHITE
-						        player_piece = PieceColor.BLACK
-						        
-						        # 1. Verifica se a IA pode vencer no próximo movimento
-						        win_move = self._find_winning_move(board, ai_piece)
-						        if win_move:
-						            return win_move
-						        
-						        # 2. Verifica se a IA precisa bloquear o jogador
-						        block_move = self._find_winning_move(board, player_piece)
-						        if block_move:
-						            return block_move
-						        
-						        # 3. Procura posições estratégicas (ex: 3 em linha)
-						        strategic_move = self._find_strategic_move(board, ai_piece)
-						        if strategic_move:
-						            return strategic_move
-						        
-						        # 4. Fallback para movimento próximo ao centro
-						        return self._get_center_biased_move(board)
-						
-						    def _find_winning_move(self, board: List[List[Optional[str]]], piece: PieceColor) -> Optional[Position]:
-						        """Encontra um movimento que cria 5 em linha"""
-						        for row in range(self.board_size):
-						            for col in range(self.board_size):
-						                if board[row][col] is None:
-						                    # Tenta colocar a peça aqui
-						                    test_board = [r[:] for r in board]
-						                    test_board[row][col] = piece.value
-						                    if self.check_winner(test_board, Position(row=row, col=col), piece):
-						                        return Position(row=row, col=col)
-						        return None
-					</code></pre>
-				</section>
-				
-				<section>
-					<h3>Deploy - Proxy Reverso: `nginx/nginx.conf`</h3>
-					<p>Configuração do Nginx no servidor Ubuntu. Ele escuta na porta 80 (e 443) e direciona o tráfego para as aplicações corretas (React e FastAPI).</p>
-					<pre><code class="language-nginx" data-trim data-noescape>
-						events { worker_connections 1024; }
-
-						http {
-						    # Define os "upstreams" (serviços locais)
-						    upstream frontend {
-						        # React (frontend) rodando localmente na porta 3000
-						        server 127.0.0.1:3000;
-						    }
-
-						    upstream backend {
-						        # FastAPI (backend) rodando localmente na porta 9000
-						        server 127.0.0.1:9000;
-						    }
-
-						    # Servidor HTTP: redireciona tudo para HTTPS
-						    server {
-						        listen 80;
-						        server_name localhost; # (substituir pelo domínio)
-						        return 301 https://$host$request_uri;
-						    }
-
-						    # Servidor HTTPS
-						    server {
-						        listen 443 ssl;
-						        server_name localhost;
-						        # ... (configuração de certificados SSL) ...
-
-						        # Reverse proxy para o frontend (React)
-						        location / {
-						            proxy_pass http://frontend;
-						            proxy_set_header Host $host;
-						            # ... (outros headers)
-						        }
-
-						        # Reverse proxy para a API REST (FastAPI)
-						        location /api/ {
-						            proxy_pass http://backend;
-						            proxy_set_header Host $host;
-						            # ... (outros headers)
-						        }
-						
-						        # ... (continua)
-					</code></pre>
-				</section>
-
-				<section>
-					<h3>Deploy - Proxy Reverso (WebSockets)</h3>
-					<p>A configuração do Nginx para WebSockets (<code>/ws/</code>) é especial e requer headers <code>Upgrade</code> e <code>Connection</code> para funcionar.</p>
-					<pre><code class="language-nginx" data-trim data-noescape>
-						    # (continuação do server block)
-
-						    # Reverse proxy para WebSockets (Lobby e Jogo)
-						    location /ws/ {
-						        proxy_pass http://backend;
-						        
-						        # Headers obrigatórios para o "upgrade" da conexão
-						        # de HTTP para WebSocket
-						        proxy_http_version 1.1;
-						        proxy_set_header Upgrade $http_upgrade;
-						        proxy_set_header Connection "Upgrade";
-						        
-						        proxy_set_header Host $host;
-						        proxy_set_header X-Real-IP $remote_addr;
-						        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-						        proxy_set_header X-Forwarded-Proto $scheme;
-						        
-						        # Aumenta o timeout para conexões de longa duração
-						        proxy_read_timeout 86400s; # 1 dia
-						        proxy_send_timeout 86400s;
-						    }
-						}
-					</code></pre>
-				</section>
-
-				<section>
-					<h2>Perguntas?</h2>
+					<h2>Conclusão</h2>
+					<p>O projeto atende integralmente aos requisitos, com destaque para a comunicação em tempo real e segurança da infraestrutura.</p>
+					<br>
+					<p>
+						<a href="https://web.luan.costa.vms.ufsc.br/" target="_blank">Acessar Aplicação (VPS)</a>
+					</p>
 				</section>
 
 			</div>
@@ -687,13 +215,8 @@
 		<script src="plugin/markdown/markdown.js"></script>
 		<script src="plugin/highlight/highlight.js"></script>
 		<script>
-			// More info about initialization & config:
-			// - https://revealjs.com/initialization/
-			// - https://revealjs.com/config/
 			Reveal.initialize({
 				hash: true,
-
-				// Learn about plugins: https://revealjs.com/plugins/
 				plugins: [ RevealMarkdown, RevealHighlight, RevealNotes ]
 			});
 		</script>
