@@ -30,7 +30,7 @@ services:
     environment:
       - MONGODB_URL=mongodb+srv://gomoku:UfSRpZPBfHaO9ADl@gomoku.ggs5g4x.mongodb.net/?appName=Gomoku
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-key}
-      - CORS_ORIGINS=["http://localhost:9001","http://127.0.0.1:9001","http://localhost:3000","http://127.0.0.1:3000"]
+      - CORS_ORIGINS=["http://localhost:9001","https://web.luan.costa.vms.ufsc.br","http://127.0.0.1:9001","http://localhost:3000","http://127.0.0.1:3000"]
       - DEBUG=true
       - LOG_LEVEL=DEBUG
       - PYTHONPATH=/app
