@@ -50,8 +50,6 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-ALLOWED_ORIGINS = ["*"]  # Accept all origins
-    
 
 # Logging Middleware
 class LoggingMiddleware(BaseHTTPMiddleware):
@@ -75,7 +73,13 @@ app.add_middleware(LoggingMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=[
+        "http://localhost",
+        "http://localhost:3000",
+        "http://127.0.0.1:8000",
+        "https://web.luan.costa.vms.ufsc.br",  # <--- O IMPORTANTE (HTTPS)
+        "wss://web.luan.costa.vms.ufsc.br"     # <--- Por garantia
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
