@@ -79,7 +79,7 @@ export const useGameWebSocket = ({
       shouldReconnectRef.current = true;
 
       // Ajuste a URL se necessário, removendo /ws duplicado
-      const wsBaseUrl = process.env.REACT_APP_WS_URL || 'ws://localhost:8000';
+      const wsBaseUrl = process.env.REACT_APP_WS_URL || 'wss://localhost:8000';
       const wsUrl = `${wsBaseUrl}/ws/game/${gameId}?token=${encodeURIComponent(token)}`;
       
       logger.websocketConnect(wsUrl);

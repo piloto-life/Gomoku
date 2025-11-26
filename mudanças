@@ -1,0 +1,95 @@
+[1mdiff --git a/frontend/src/pages/Lobby.tsx b/frontend/src/pages/Lobby.tsx[m
+[1mindex 700bbe9..881a4cf 100644[m
+[1m--- a/frontend/src/pages/Lobby.tsx[m
+[1m+++ b/frontend/src/pages/Lobby.tsx[m
+[36m@@ -103,6 +103,90 @@[m [mconst Lobby: React.FC = () => {[m
+     }[m
+   }, [isAuthenticated]);[m
+ [m
+[32m+[m[32m  // WebSocket connection for lobby real-time updates[m
+[32m+[m[32m  useEffect(() => {[m
+[32m+[m[32m    if (!isAuthenticated || !user) return;[m
+[32m+[m
+[32m+[m[32m    const connectWebSocket = () => {[m
+[32m+[m[32m      try {[m
+[32m+[m[32m        const wsBaseUrl = process.env.REACT_APP_WS_URL || 'wss://localhost:8000';[m
+[32m+[m[32m        const wsUrl = `${wsBaseUrl}/ws/lobby`;[m
+[32m+[m
+[32m+[m[32m        logger.info('LOBBY', 'Connecting to lobby WebSocket', { wsUrl });[m
+[32m+[m[32m        const socket = new WebSocket(wsUrl);[m
+[32m+[m[32m        ws.current = socket;[m
+[32m+[m
+[32m+[m[32m        socket.onopen = () => {[m
+[32m+[m[32m          logger.info('LOBBY', 'Lobby WebSocket connected');[m
+[32m+[m[32m        };[m
+[32m+[m
+[32m+[m[32m        socket.onmessage = (event) => {[m
+[32m+[m[32m          try {[m
+[32m+[m[32m            const message = JSON.parse(event.data);[m
+[32m+[m[32m            logger.websocketMessage('RECEIVE', message.type, message);[m
+[32m+[m
+[32m+[m[32m            switch (message.type) {[m
+[32m+[m[32m              case 'queue_update':[m
+[32m+[m[32m                if (message.queue) {[m
+[32m+[m[32m                  setWaitingQueue(message.queue);[m
+[32m+[m[32m                }[m
+[32m+[m[32m                break;[m
+[32m+[m
+[32m+[m[32m              case 'chat_message':[m
+[32m+[m[32m                if (message.message) {[m
+[32m+[m[32m                  setChatMessages(prev => [...prev, {[m
+[32m+[m[32m                    id: Date.now().toString(),[m
+[32m+[m[32m                    userId: message.userId || '',[m
+[32m+[m[32m                    username: message.userName || 'Anônimo',[m
+[32m+[m[32m                    message: message.message,[m
+[32m+[m[32m                    timestamp: new Date(),[m
+[32m+[m[32m                    type: 'user'[m
+[32m+[m[32m                  }]);[m
+[32m+[m[32m                }[m
+[32m+[m[32m                break;[m
+[32m+[m
+[32m+[m[32m              case 'match_found':[m
+[32m+[m[32m                logger.info('LOBBY', 'Match found, navigating to game', { gameId: message.game_id });[m
+[32m+[m[32m                if (message.game_id) {[m
+[32m+[m[32m                  navigate(`/game/${message.game_id}`);[m
+[32m+[m[32m                }[m
+[32m+[m[32m                break;[m
+[32m+[m[32m            }[m
+[32m+[m[32m          } catch (error) {[m
+[32m+[m[32m            logger.error('LOBBY', 'Error parsing WebSocket message', { error });[m
+[32m+[m[32m          }[m
+[32m+[m[32m        };[m
+[32m+[m
+[32m+[m[32m        socket.onclose = () => {[m
+[32m+[m[32m          logger.info('LOBBY', 'Lobby WebSocket disconnected');[m
+[32m+[m[32m          ws.current = null;[m
+[32m+[m
+[32m+[m[32m          // Reconnect after 3 seconds if still authenticated[m
+[32m+[m[32m          setTimeout(() => {[m
+[32m+[m[32m            if (isAuthenticated && user) {[m
+[32m+[m[32m              connectWebSocket();[m
+[32m+[m[32m            }[m
+[32m+[m[32m          }, 3000);[m
+[32m+[m[32m        };[m
+[32m+[m
+[32m+[m[32m        socket.onerror = (error) => {[m
+[32m+[m[32m          logger.error('LOBBY', 'Lobby WebSocket error', { error });[m
+[32m+[m[32m        };[m
+[32m+[m[32m      } catch (error) {[m
+[32m+[m[32m        logger.error('LOBBY', 'Failed to create lobby WebSocket', { error });[m
+[32m+[m[32m      }[m
+[32m+[m[32m    };[m
+[32m+[m
+[32m+[m[32m    connectWebSocket();[m
+[32m+[m
+[32m+[m[32m    return () => {[m
+[32m+[m[32m      if (ws.current) {[m
+[32m+[m[32m        ws.current.close();[m
+[32m+[m[32m        ws.current = null;[m
+[32m+[m[32m      }[m
+[32m+[m[32m    };[m
+[32m+[m[32m  }, [isAuthenticated, user, navigate]);[m
+[32m+[m
+   // ... (rest of the code)[m
+ [m
+   const handleJoinQueue = () => {[m

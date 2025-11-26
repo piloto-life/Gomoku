@@ -103,94 +103,67 @@ const Lobby: React.FC = () => {
     }
   }, [isAuthenticated]);
 
-  // WebSocket connection
+  // WebSocket connection for lobby real-time updates
   useEffect(() => {
     if (!isAuthenticated || !user) return;
 
     const connectWebSocket = () => {
-      // Close existing connection if any
-      if (ws.current) {
-        ws.current.close();
-      }
-
-      const wsBaseUrl = process.env.REACT_APP_WS_URL || 'ws://localhost:8000';
-      // Use the token from auth context (assuming it's available via a method or stored in localStorage/cookie handled by auth)
-      // Since useAuth doesn't expose token directly in the interface shown, we might need to get it. 
-      // However, usually AuthContext handles this. Let's check if we can get the token.
-      // Looking at useGameWebSocket, it uses `const { token } = useAuth()`. 
-      // Let's assume useAuth provides token. If not, we'll need to fix that.
-      // The previous view of Lobby.tsx didn't show 'token' destructuring, so I'll add it.
-
-      // For now, let's try to get token from localStorage if not in context, or assume context has it.
-      // Wait, I should check useAuth definition first to be safe? 
-      // Step 30 showed useGameWebSocket using `const { token, user } = useAuth()`.
-      // So I can destructure token from useAuth().
-
-      const token = localStorage.getItem('token'); // Fallback or use context if I update the destructuring
-
-      if (!token) {
-        logger.error('LOBBY', 'No auth token found for WebSocket connection');
-        return;
-      }
-
-      const wsUrl = `${wsBaseUrl}/ws/lobby?token=${encodeURIComponent(token)}`;
-      logger.info('LOBBY', 'Connecting to lobby WebSocket', { wsUrl });
-
       try {
+        const wsBaseUrl = process.env.REACT_APP_WS_URL || 'wss://localhost:8000';
+        const wsUrl = `${wsBaseUrl}/ws/lobby`;
+
+        logger.info('LOBBY', 'Connecting to lobby WebSocket', { wsUrl });
         const socket = new WebSocket(wsUrl);
         ws.current = socket;
 
         socket.onopen = () => {
-          logger.info('LOBBY', 'Connected to lobby WebSocket');
-          // Re-join queue if we were in it? Maybe not needed for now.
+          logger.info('LOBBY', 'Lobby WebSocket connected');
         };
 
         socket.onmessage = (event) => {
           try {
-            const data = JSON.parse(event.data);
-            logger.websocketMessage('RECEIVE', data.type, data);
+            const message = JSON.parse(event.data);
+            logger.websocketMessage('RECEIVE', message.type, message);
 
-            switch (data.type) {
+            switch (message.type) {
               case 'queue_update':
-                // Update queue state
-                if (data.queue) {
-                  // Transform queue data if necessary to match OnlinePlayer interface
-                  // Assuming data.queue is array of players
-                  setWaitingQueue(data.queue);
-                }
-                break;
-
-              case 'game_start':
-                logger.info('LOBBY', 'Game started!', data);
-                if (data.game_id) {
-                  navigate(`/game/${data.game_id}`);
+                if (message.queue) {
+                  setWaitingQueue(message.queue);
                 }
                 break;
 
               case 'chat_message':
-                setChatMessages(prev => [...prev, {
-                  id: Date.now().toString(), // Generate temp ID
-                  userId: data.userId,
-                  username: data.userName || data.username,
-                  message: data.message,
-                  timestamp: new Date(data.timestamp),
-                  type: 'user'
-                }]);
+                if (message.message) {
+                  setChatMessages(prev => [...prev, {
+                    id: Date.now().toString(),
+                    userId: message.userId || '',
+                    username: message.userName || 'Anônimo',
+                    message: message.message,
+                    timestamp: new Date(),
+                    type: 'user'
+                  }]);
+                }
                 break;
 
-              default:
+              case 'match_found':
+                logger.info('LOBBY', 'Match found, navigating to game', { gameId: message.game_id });
+                if (message.game_id) {
+                  navigate(`/game/${message.game_id}`);
+                }
                 break;
             }
-          } catch (err) {
-            logger.error('LOBBY', 'Error parsing WebSocket message', { error: err });
+          } catch (error) {
+            logger.error('LOBBY', 'Error parsing WebSocket message', { error });
           }
         };
 
-        socket.onclose = (event) => {
+        socket.onclose = () => {
           logger.info('LOBBY', 'Lobby WebSocket disconnected');
-          // Attempt reconnect after delay
+          ws.current = null;
+
+          // Reconnect after 3 seconds if still authenticated
           setTimeout(() => {
-            if (isAuthenticated) {
+            if (isAuthenticated && user) {
               connectWebSocket();
             }
           }, 3000);
@@ -199,9 +172,8 @@ const Lobby: React.FC = () => {
         socket.onerror = (error) => {
           logger.error('LOBBY', 'Lobby WebSocket error', { error });
         };
-
-      } catch (err) {
-        logger.error('LOBBY', 'Failed to create WebSocket connection', { error: err });
+      } catch (error) {
+        logger.error('LOBBY', 'Failed to create lobby WebSocket', { error });
       }
     };
 
@@ -210,9 +182,12 @@ const Lobby: React.FC = () => {
     return () => {
       if (ws.current) {
         ws.current.close();
+        ws.current = null;
       }
     };
   }, [isAuthenticated, user, navigate]);
+
+  // ... (rest of the code)
 
   const handleJoinQueue = () => {
     logger.userAction('JOIN_QUEUE_CLICKED', 'Lobby');
