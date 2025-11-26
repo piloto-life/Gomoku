@@ -34,20 +34,16 @@ interface ChatMessage {
 }
 
 const Lobby: React.FC = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, token } = useAuth();
   const { createGame, aiDifficulty, setAiDifficulty } = useGame();
   const { settings } = useUI();
   const navigate = useNavigate();
 
-  // Log page visit
   usePageLogger('Lobby');
 
-  // Game state
   const [selectedGameMode, setSelectedGameMode] = useState<'pvp-local' | 'pvp-online' | 'pve'>('pvp-local');
   const [waitingQueue, setWaitingQueue] = useState<OnlinePlayer[]>([]);
 
-  // UI state
-  // UI state
   const [showSettings, setShowSettings] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [userRanking, setUserRanking] = useState<any>({ rank_position: 0, elo_rating: 1200, wins: 0, losses: 0, rank_tier: 'Bronze' });
@@ -56,10 +52,8 @@ const Lobby: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // WebSocket
   const ws = useRef<WebSocket | null>(null);
 
-  // Effect for fetching lobby data when authentication is confirmed
   useEffect(() => {
     const fetchLobbyData = async () => {
       setIsLoading(true);
@@ -67,7 +61,6 @@ const Lobby: React.FC = () => {
       logger.info('LOBBY', 'Fetching lobby data');
 
       try {
-        // Dynamically import rankingAPI to avoid circular dependencies if any
         const { rankingAPI } = await import('../services/api');
 
         const [games, players, myStats] = await Promise.all([
@@ -103,14 +96,13 @@ const Lobby: React.FC = () => {
     }
   }, [isAuthenticated]);
 
-  // WebSocket connection for lobby real-time updates
   useEffect(() => {
-    if (!isAuthenticated || !user) return;
+    if (!isAuthenticated || !user || !token) return;
 
     const connectWebSocket = () => {
       try {
         const wsBaseUrl = process.env.REACT_APP_WS_URL || 'wss://localhost:8000';
-        const wsUrl = `${wsBaseUrl}/ws/lobby`;
+        const wsUrl = `${wsBaseUrl}/ws/lobby?token=${encodeURIComponent(token)}`;
 
         logger.info('LOBBY', 'Connecting to lobby WebSocket', { wsUrl });
         const socket = new WebSocket(wsUrl);
@@ -145,6 +137,7 @@ const Lobby: React.FC = () => {
                 }
                 break;
 
+              case 'game_start':
               case 'match_found':
                 logger.info('LOBBY', 'Match found, navigating to game', { gameId: message.game_id });
                 if (message.game_id) {
@@ -161,7 +154,6 @@ const Lobby: React.FC = () => {
           logger.info('LOBBY', 'Lobby WebSocket disconnected');
           ws.current = null;
 
-          // Reconnect after 3 seconds if still authenticated
           setTimeout(() => {
             if (isAuthenticated && user) {
               connectWebSocket();
@@ -185,9 +177,7 @@ const Lobby: React.FC = () => {
         ws.current = null;
       }
     };
-  }, [isAuthenticated, user, navigate]);
-
-  // ... (rest of the code)
+  }, [isAuthenticated, user, token, navigate]);
 
   const handleJoinQueue = () => {
     logger.userAction('JOIN_QUEUE_CLICKED', 'Lobby');
@@ -216,7 +206,6 @@ const Lobby: React.FC = () => {
     if (!user) return;
 
     try {
-      // Save to backend for persistence
       await chatAPI.sendMessage({
         type: 'lobby',
         message,
@@ -225,7 +214,6 @@ const Lobby: React.FC = () => {
         timestamp: new Date().toISOString()
       });
 
-      // Also send via WebSocket for real-time updates
       if (ws.current?.readyState === WebSocket.OPEN) {
         ws.current.send(JSON.stringify({
           type: 'chat_message',
@@ -254,10 +242,8 @@ const Lobby: React.FC = () => {
           status: result.status
         });
 
-        // Navigate to specific game
         navigate(`/game/${result.gameId}`);
       } else {
-        // Fallback for local games or games without specific ID
         logger.warn('LOBBY', 'Game created but no specific ID returned, using generic navigation');
         navigate('/game');
       }
@@ -269,15 +255,12 @@ const Lobby: React.FC = () => {
       });
       console.error('Erro ao criar jogo:', error);
 
-      // Show user-friendly error message
-      // TODO: Add proper error notification system
       alert('Erro ao criar jogo. Tente novamente.');
     }
   };
 
   return (
     <div className={`lobby-container ${settings.theme}`} data-theme={settings.theme}>
-      {/* Header */}
       <header className="lobby-header">
         <div className="header-left">
           <h1>
@@ -305,9 +288,7 @@ const Lobby: React.FC = () => {
       </header>
 
       <div className="lobby-content">
-        {/* Main Content */}
         <div className="main-section">
-          {/* Player Profile */}
           <div className="profile-section">
             <PlayerAvatar
               size="large"
@@ -340,7 +321,6 @@ const Lobby: React.FC = () => {
             </div>
           </div>
 
-          {/* Game Modes */}
           <div className="game-modes-section">
             <h2>
               <i className="fas fa-gamepad"></i>
@@ -375,7 +355,6 @@ const Lobby: React.FC = () => {
               </div>
             </div>
 
-            {/* AI Difficulty Selection */}
             {selectedGameMode === 'pve' && (
               <div className="ai-difficulty-section">
                 <h3>Dificuldade da IA</h3>
@@ -397,7 +376,6 @@ const Lobby: React.FC = () => {
               </div>
             )}
 
-            {/* Online Queue */}
             {selectedGameMode === 'pvp-online' && (
               <div className="online-queue-section">
                 <div className="queue-controls">
@@ -446,7 +424,6 @@ const Lobby: React.FC = () => {
               </div>
             )}
 
-            {/* Start Game Button */}
             {(selectedGameMode === 'pvp-local' || selectedGameMode === 'pve') && (
               <div className="start-game-section">
                 <button onClick={handleCreateGame} className="btn btn-primary btn-large">
@@ -458,16 +435,13 @@ const Lobby: React.FC = () => {
           </div>
         </div>
 
-        {/* Sidebar */}
         <div className="sidebar">
-          {/* Ranking System */}
           <RankingSystem
             showGlobalRanking={true}
             maxPlayers={10}
             className="lobby-ranking"
           />
 
-          {/* Chat */}
           {settings.showChat && (
             <ChatComponent
               messages={chatMessages}
@@ -476,14 +450,12 @@ const Lobby: React.FC = () => {
             />
           )}
 
-          {/* Video Chat */}
           {settings.showVideoChat && (
             <VideoChat
               isInGame={false}
             />
           )}
 
-          {/* Screen Recorder */}
           <ScreenRecorder
             isInGame={false}
             onRecordingStart={() => console.log('Recording started')}
@@ -500,7 +472,6 @@ const Lobby: React.FC = () => {
         </div>
       </div>
 
-      {/* Settings Panel */}
       {showSettings && (
         <SettingsPanel
           isOpen={showSettings}
