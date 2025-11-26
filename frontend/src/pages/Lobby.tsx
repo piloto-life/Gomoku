@@ -99,6 +99,8 @@ const Lobby: React.FC = () => {
   useEffect(() => {
     if (!isAuthenticated || !user || !token) return;
 
+    let isEffectActive = true;
+
     const connectWebSocket = () => {
       try {
         const wsBaseUrl = process.env.REACT_APP_WS_URL || 'wss://localhost:8000';
@@ -109,10 +111,14 @@ const Lobby: React.FC = () => {
         ws.current = socket;
 
         socket.onopen = () => {
-          logger.info('LOBBY', 'Lobby WebSocket connected');
+          if (isEffectActive) {
+            logger.info('LOBBY', 'Lobby WebSocket connected');
+          }
         };
 
         socket.onmessage = (event) => {
+          if (!isEffectActive) return;
+
           try {
             const message = JSON.parse(event.data);
             logger.websocketMessage('RECEIVE', message.type, message);
@@ -154,15 +160,19 @@ const Lobby: React.FC = () => {
           logger.info('LOBBY', 'Lobby WebSocket disconnected');
           ws.current = null;
 
-          setTimeout(() => {
-            if (isAuthenticated && user) {
-              connectWebSocket();
-            }
-          }, 3000);
+          if (isEffectActive) {
+            setTimeout(() => {
+              if (isEffectActive && isAuthenticated && user) {
+                connectWebSocket();
+              }
+            }, 3000);
+          }
         };
 
         socket.onerror = (error) => {
-          logger.error('LOBBY', 'Lobby WebSocket error', { error });
+          if (isEffectActive) {
+            logger.error('LOBBY', 'Lobby WebSocket error', { error });
+          }
         };
       } catch (error) {
         logger.error('LOBBY', 'Failed to create lobby WebSocket', { error });
@@ -172,6 +182,7 @@ const Lobby: React.FC = () => {
     connectWebSocket();
 
     return () => {
+      isEffectActive = false;
       if (ws.current) {
         ws.current.close();
         ws.current = null;
