@@ -583,6 +583,13 @@ async def websocket_game_endpoint(
                             "message": f"{user.username} wins!"
                         }
                         await game_manager.send_game_event(game_id, "game_end", win_data)
+                        
+                        await game_manager.broadcast_to_lobby({
+                            "type": "game_ended",
+                            "game_id": game_id,
+                            "winner": player_color
+                        })
+
                         try:
                             from database import get_database
                             from services.ranking_service import RankingService
