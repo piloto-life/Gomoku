@@ -42,17 +42,24 @@ const GameChat: React.FC<GameChatProps> = ({ gameId }) => {
           </div>
         ) : (
           chatMessages.map((msg, index) => {
-            // Verifica se a mensagem é minha
-            const isMe = (msg.user_id === user?.id) || (msg.userId === user?.id);
+            // Extrai os dados reais da mensagem, suportando a estrutura aninhada 'data' do backend
+            const messageData = msg.data || msg;
             
-            // Define o nome a ser exibido (prioridade para o que vem na mensagem)
+            // Normaliza os campos
+            const content = messageData.message;
+            const senderId = messageData.user_id || messageData.userId;
+            const senderUsername = messageData.username || messageData.userName;
+            const timestamp = messageData.timestamp || msg.timestamp;
+
+            // Verifica se a mensagem é minha
+            const isMe = (senderId === user?.id);
+            
+            // Define o nome a ser exibido
             let senderName = 'Oponente';
             if (isMe) {
               senderName = 'Você';
-            } else if (msg.username) {
-              senderName = msg.username;
-            } else if (msg.userName) {
-              senderName = msg.userName;
+            } else if (senderUsername) {
+              senderName = senderUsername;
             }
 
             return (
@@ -61,11 +68,11 @@ const GameChat: React.FC<GameChatProps> = ({ gameId }) => {
                 className={`chat-message ${isMe ? 'sent' : 'received'}`}
               >
                 <div className="message-sender">{senderName}</div>
-                <div className="message-content">{msg.message}</div>
+                <div className="message-content">{content}</div>
                 
-                {msg.timestamp && (
+                {timestamp && (
                   <div className="message-time">
-                    {new Date(msg.timestamp).toLocaleTimeString([], { 
+                    {new Date(timestamp).toLocaleTimeString([], { 
                       hour: '2-digit', 
                       minute: '2-digit' 
                     })}
