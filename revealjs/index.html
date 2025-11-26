@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="pt-BR">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<title>Gomoku - Projeto Web UFSC</title>
+
+		<link rel="stylesheet" href="dist/reset.css">
+		<link rel="stylesheet" href="dist/reveal.css">
+		
+		<link rel="stylesheet" href="dist/theme/white.css">
+
+		<link rel="stylesheet" href="plugin/highlight/monokai.css">
+
+		<style>
+			.reveal { font-size: 24px; }
+			.reveal pre code { max-height: 550px; line-height: 1.3; box-shadow: 0 5px 15px rgba(0,0,0,0.15); }
+			.reveal h1, .reveal h2, .reveal h3 { color: #181818; }
+			.two-col { display: flex; justify-content: space-between; }
+			.two-col > div { width: 48%; }
+		</style>
+	</head>
+	<body>
+		<div class="reveal">
+			<div class="slides">
+
+				<section>
+					<h1>Gomoku Web</h1>
+					<h3>INE5646 - Programação para Web</h3>
+					<p>
+						<small>Alec Coelho & Luan Costa</small>
+					</p>
+					<p><small>UFSC - 2025</small></p>
+				</section>
+
+				<section>
+					<h2>Arquitetura e Tecnologias</h2>
+					<ul>
+						<li><strong>Frontend:</strong> React (TypeScript) </li>
+						<li><strong>Backend:</strong> FastAPI (Python) + Uvicorn</li>
+						<li><strong>Banco de Dados:</strong> MongoDB Atlas (Cluster Nuvem)</li>
+						<li><strong>Comunicação:</strong> API REST + WebSockets Nativos</li>
+						<li><strong>Infraestrutura:</strong> Docker Compose + Nginx Reverse Proxy</li>
+					</ul>
+				</section>
+
+				<section>
+					<h3>Backend: WebSocket (v2)</h3>
+					<p>Normalização de mensagens e injeção de timestamp.</p>
+					<pre><code class="python" data-trim data-noescape>
+# backend/routers/websocket.py
+
+@router.websocket("/game/{game_id}")
+async def websocket_game_endpoint(websocket: WebSocket, game_id: str):
+    await manager.connect(websocket, game_id)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            msg = json.loads(data)
+            
+            # Padronização do tipo de mensagem
+            if msg.get("type") == "chat":
+                msg["type"] = "chat_message"
+                msg["timestamp"] = datetime.utcnow().isoformat()
+                
+                # Broadcast para todos (Jogadores + Espectadores)
+                await manager.broadcast_to_room(json.dumps(msg), game_id)
+                
+            elif msg.get("type") == "move":
+                await manager.broadcast_to_room(json.dumps(msg), game_id)
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, game_id)
+					</code></pre>
+				</section>
+
+				<section>
+					<h3>Frontend: useGameWebSocket</h3>
+					<p>Gerenciamento de conexão e eventos no cliente.</p>
+					<pre><code class="typescript" data-trim data-noescape>
+// frontend/src/hooks/useGameWebSocket.ts
+
+export const useGameWebSocket = ({ gameId, onMove, onChatMessage }: Props) => {
+  const connect = useCallback(() => {
+    // Conexão segura (WSS) via ambiente
+    const wsUrl = `${process.env.REACT_APP_WS_URL}/ws/game/${gameId}`;
+    const socket = new WebSocket(wsUrl);
+
+    socket.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      
+      switch (message.type) {
+        case 'player_move':
+          onMove && onMove(message.move);
+          break;
+          
+        // Suporte a protocolo v2 (chat_message) e fallback
+        case 'chat_message':
+        case 'chat':
+          onChatMessage && onChatMessage(message);
+          break;
+      }
+    };
+  }, [gameId]);
+};
+					</code></pre>
+				</section>
+
+				<section>
+					<h3>Infraestrutura: Docker & Atlas</h3>
+					<p>Configuração de produção com banco em nuvem.</p>
+					<pre><code class="yaml" data-trim data-noescape>
+# docker-compose.yml
+
+services:
+  backend:
+    build: ./backend
+    environment:
+      # String de conexão para o Cluster Atlas
+      - MONGODB_URL=mongodb+srv://gomoku:***@gomoku.ggs5g4x.mongodb.net/
+      - ENVIRONMENT=production
+    ports: ["8000:8000"]
+
+  frontend:
+    build: ./frontend
+    depends_on: ["backend"]
+
+  nginx:
+    image: nginx:alpine
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+					</code></pre>
+				</section>
+
+				<section>
+					<h3>Criação de Partida</h3>
+					<ul>
+						<li><strong>GameManager:</strong> Fila em memória RAM para <em>matchmaking</em> instantâneo.</li>
+						<li><strong>Persistência:</strong> Cria documento no MongoDB <em>antes</em> do início para garantir integridade.</li>
+					</ul>
+					<pre><code class="python" data-trim data-noescape>
+# backend/game_manager.py
+
+async def _create_db_game(self, p1: Dict, p2: Dict) -> Dict:
+    """Persistência Atômica no MongoDB"""
+    new_game = {
+        "players": { "black": p1, "white": p2 },
+        "status": "active",
+        "mode": "pvp-online",
+        "board": [[None] * 19] * 19,
+        "created_at": datetime.utcnow()
+    }
+    
+    # Garante ID real antes do broadcast
+    result = await games_collection.insert_one(new_game)
+    
+    return { "game_id": str(result.inserted_id), ... }
+					</code></pre>
+				</section>
+
+				<section>
+					<h3>Garbage Collector</h3>
+					<ul>
+						<li><strong>Problema:</strong> Jogos abandonados poluíam a lista do Lobby.</li>
+						<li><strong>Solução:</strong> Monitoramento de desconexão WebSocket. Se a sala esvazia, o jogo é abortado.</li>
+					</ul>
+					<pre><code class="python" data-trim data-noescape>
+# backend/routers/websocket.py
+
+except WebSocketDisconnect:
+    manager.disconnect(websocket, game_id, user_id)
+    
+    # Garbage Collector: Verifica se a sala ficou vazia
+    if not manager.game_rooms.get(game_id):
+        # Marca jogo como abortado no banco
+        await games_collection.update_one(
+            {"_id": ObjectId(game_id), "status": "active"},
+            {"$set": {"status": "aborted"}}
+        )
+        # Força atualização da lista no Lobby
+        await manager.broadcast_to_lobby(json.dumps({"type": "update"}))
+					</code></pre>
+				</section>
+
+				<section>
+					<h3>Recursos Avançados</h3>
+					<ul>
+						<li>
+							<strong>Modo Espectador:</strong>
+							<br>Suporte a múltiplos clientes na sala. Apenas <code>user_id</code> dos jogadores pode enviar movimentos, mas todos recebem o estado.
+						</li>
+						<br>
+						<li>
+							<strong>Gravação (FFMPEG):</strong>
+							<br>Backend processa histórico de movimentos e gera vídeo (.webm) ao final, servido via Nginx.
+						</li>
+					</ul>
+				</section>
+
+				<section>
+					<h2>Perguntas?</h2>
+					<p>+ demonstração prática.</p>
+					<br>
+					<p>
+						<a href="https://web.luan.costa.vms.ufsc.br/" target="_blank">Acessar Aplicação</a>
+					</p>
+				</section>
+
+			</div>
+		</div>
+
+		<script src="dist/reveal.js"></script>
+		<script src="plugin/notes/notes.js"></script>
+		<script src="plugin/markdown/markdown.js"></script>
+		<script src="plugin/highlight/highlight.js"></script>
+		<script>
+			Reveal.initialize({
+				hash: true,
+				plugins: [ RevealMarkdown, RevealHighlight, RevealNotes ]
+			});
+		</script>
+	</body>
+</html>
