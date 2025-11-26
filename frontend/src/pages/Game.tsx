@@ -8,6 +8,7 @@ import { usePageLogger } from '../hooks/useNavigationLogger';
 import GameBoard from '../components/GameBoard';
 import GameInfo from '../components/GameInfo';
 import GameChat from '../components/GameChat';
+import ScreenRecorder from '../components/ScreenRecorder';
 import logger from '../utils/logger';
 import GameEndModal from '../components/GameEndModal';
 import { GameState } from '../types';
@@ -17,25 +18,16 @@ const GamePage: React.FC = () => {
   const [initialGameState, setInitialGameState] = useState<GameState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Log page access
   usePageLogger('Game');
 
   useEffect(() => {
-    logger.info('GAME_PAGE', 'Game page accessed', { gameId });
-  }, [gameId]);
-
-  // Load initial game state for online games
-  useEffect(() => {
     if (gameId && !gameId.startsWith('local-')) {
-      logger.info('GAME', 'Loading initial game state via REST API', { gameId });
       gamesAPI.getGame(gameId)
         .then((game: GameState) => {
-          logger.info('GAME', 'Initial game state loaded', { gameId });
           setInitialGameState(game);
           setIsLoading(false);
         })
         .catch((error: any) => {
-          logger.error('GAME', 'Failed to load initial game state', { gameId, error });
           setIsLoading(false);
         });
     } else {
@@ -44,23 +36,16 @@ const GamePage: React.FC = () => {
   }, [gameId]);
 
   if (!gameId) {
-    logger.info('GAME_PAGE', 'No game ID provided, redirecting to lobby');
-    // Redirect to lobby instead of showing error
     window.location.href = '/lobby';
     return <div>Redirecionando para o lobby...</div>;
   }
 
-  // Check if it's a local game (local games have IDs starting with "local-")
   const isLocalGame = gameId.startsWith('local-');
   
-  logger.info('GAME_PAGE', 'Game type determined', { gameId, isLocalGame });
-
-  // For local games, don't use WebSocket provider
   if (isLocalGame) {
     return <LocalGameComponent />;
   }
 
-  // Show loading while fetching initial state
   if (isLoading) {
     return (
       <div className="loading">
@@ -70,7 +55,6 @@ const GamePage: React.FC = () => {
     );
   }
 
-  // For online games, use WebSocket provider with initial state
   return (
     <GameWebSocketProvider gameId={gameId} initialGameState={initialGameState}>
       <OnlineGameComponent />
@@ -78,29 +62,25 @@ const GamePage: React.FC = () => {
   );
 };
 
-// Local Game Component (uses GameContext)
 const LocalGameComponent: React.FC = () => {
   const { gameId } = useParams<{ gameId: string }>();
   const navigate = useNavigate();
   const { gameState, loadGame, leaveGame, makeMove } = useGameFromRoot();
   const { updateUser } = useAuth();
   
-  // Local games are always "connected" and have no connection errors
   const isConnected = true;
   const error = null;
-  const [isReconnecting] = useState(false); // Always false for local games
+  const [isReconnecting] = useState(false);
   const [showEndModal, setShowEndModal] = useState(false);
   const [endMessage, setEndMessage] = useState('');
   const [winnerName, setWinnerName] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (gameId) {
-      logger.info('GAME', 'Loading local game data', { gameId });
       loadGame(gameId);
     }
   }, [gameId, loadGame]);
 
-  // Detect end of game and show modal
   useEffect(() => {
     if (gameState && gameState.status === 'finished') {
       let msg = '';
@@ -130,7 +110,6 @@ const LocalGameComponent: React.FC = () => {
 
   const handleReturnToLobby = async () => {
     setShowEndModal(false);
-    // Attempt to save local finished game to server (if authenticated)
     try {
       if (gameState && gameState.id && gameState.id.startsWith('local-') && gameState.status === 'finished') {
         const payload = {
@@ -156,21 +135,16 @@ const LocalGameComponent: React.FC = () => {
 
         try {
           await gamesAPI.saveGame(payload);
-          logger.info('GAME', 'Local game saved to server', { gameId: gameState.id });
         } catch (saveErr) {
-          logger.warn('GAME', 'Failed to save local game to server', { error: saveErr });
         }
       }
     } catch (err) {
-      console.warn('Error while attempting to save local game:', err);
     }
 
-    // Update user stats
     try {
       const updatedUser = await authAPI.getCurrentUser();
       updateUser(updatedUser);
     } catch (e) {
-      // ignore
     }
 
     handleLeaveGame();
@@ -181,7 +155,19 @@ const LocalGameComponent: React.FC = () => {
     navigate('/lobby');
   };
 
-  // Render the game UI (same as original Game component)
+  // Função auxiliar para baixar o vídeo localmente
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  };
+
   if (!gameState) {
     return (
       <div className="loading">
@@ -200,16 +186,6 @@ const LocalGameComponent: React.FC = () => {
         <button className="btn btn-secondary" onClick={() => navigate('/lobby')}>
           Voltar ao Lobby
         </button>
-      </div>
-    );
-  }
-
-  // For local games, we don't show "connecting" state
-  if (!isConnected && !gameId?.startsWith('local-')) {
-    return (
-      <div className="loading">
-        <div className="loading-spinner"></div>
-        <p className="loading-text">{isReconnecting ? 'Reconectando ao jogo...' : 'Conectando ao jogo...'}</p>
       </div>
     );
   }
@@ -246,6 +222,16 @@ const LocalGameComponent: React.FC = () => {
           
           <div className="game-sidebar">
             <GameInfo gameState={gameState} />
+            <ScreenRecorder 
+              isInGame={true} 
+              onRecordingStart={() => logger.info('GAME', 'Recording started')}
+              onRecordingStop={(blob) => {
+                logger.info('GAME', 'Recording stopped', { size: blob.size });
+                const filename = `gomoku-local-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.webm`;
+                downloadBlob(blob, filename);
+              }}
+              onRecordingError={(err) => logger.error('GAME', 'Recording error', { error: err })}
+            />
             {gameState.gameMode === 'pvp-online' && (
               <GameChat gameId={gameId || ''} />
             )}
@@ -256,7 +242,6 @@ const LocalGameComponent: React.FC = () => {
   );
 };
 
-// Online Game Component (uses GameWebSocketContext)  
 const OnlineGameComponent: React.FC = () => {
   const { gameId } = useParams<{ gameId: string }>();
   const navigate = useNavigate();
@@ -270,25 +255,21 @@ const OnlineGameComponent: React.FC = () => {
 
   useEffect(() => {
     if (gameId) {
-      logger.info('GAME', 'Loading online game data', { gameId });
       loadGame(gameId);
     }
   }, [gameId, loadGame]);
 
-  // Feedback visual de reconexão e recarregamento do estado
   useEffect(() => {
     if (!isConnected) {
       setIsReconnecting(true);
     } else {
       if (isReconnecting && gameId) {
-        // Recarrega o estado do jogo ao reconectar
         loadGame(gameId);
       }
       setIsReconnecting(false);
     }
   }, [isConnected, gameId, loadGame, isReconnecting]);
 
-  // Detect end of game and show modal
   useEffect(() => {
     if (gameState && gameState.status === 'finished') {
       let msg = '';
@@ -310,25 +291,19 @@ const OnlineGameComponent: React.FC = () => {
   }, [gameState]);
 
   const handleLeaveGame = async () => {
-    logger.userAction('LEAVE_GAME_CLICKED', 'Game', { gameId });
     try {
       await leaveGame();
-      logger.info('GAME', 'Successfully left game', { gameId });
       navigate('/lobby');
     } catch (error) {
-      logger.error('GAME', 'Failed to leave game', { gameId, error });
     }
   };
 
-
   const handleReturnToLobby = async () => {
     setShowEndModal(false);
-    // Atualiza ranking/histórico do usuário
     try {
       const updatedUser = await authAPI.getCurrentUser();
       updateUser(updatedUser);
     } catch (e) {
-      // ignore
     }
     handleLeaveGame();
   };
@@ -336,6 +311,19 @@ const OnlineGameComponent: React.FC = () => {
   const handlePlayAgain = () => {
     setShowEndModal(false);
     navigate('/lobby');
+  };
+
+  // Função auxiliar para baixar o vídeo localmente
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
   };
 
   if (!gameState) {
@@ -348,11 +336,9 @@ const OnlineGameComponent: React.FC = () => {
   }
 
   if (error) {
-    // Check if this is a game over message (success) or actual error
     const isGameOver = error.includes('Game Over') || error.includes('wins') || error.includes('venceu');
     
     if (isGameOver) {
-      logger.info('GAME', 'Game ended', { gameId, result: error });
       return (
         <div className="game-success-modal">
           <div className="success-content">
@@ -367,7 +353,6 @@ const OnlineGameComponent: React.FC = () => {
       );
     }
     
-    logger.error('GAME', 'Game error displayed', { gameId, error });
     return (
       <div className="game-error">
         <div className="error-icon">⚠️</div>
@@ -381,7 +366,6 @@ const OnlineGameComponent: React.FC = () => {
   }
 
   if (!isConnected) {
-    logger.warn('GAME', 'Game not connected to WebSocket', { gameId });
     return (
       <div className="loading">
         <div className="loading-spinner"></div>
@@ -419,6 +403,16 @@ const OnlineGameComponent: React.FC = () => {
           </div>
           <div className="game-sidebar">
             <GameInfo gameState={gameState} />
+            <ScreenRecorder 
+              isInGame={true}
+              onRecordingStart={() => logger.info('GAME', 'Recording started')}
+              onRecordingStop={(blob) => {
+                logger.info('GAME', 'Recording stopped', { size: blob.size });
+                const filename = `gomoku-online-${gameId}-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.webm`;
+                downloadBlob(blob, filename);
+              }}
+              onRecordingError={(err) => logger.error('GAME', 'Recording error', { error: err })}
+            />
             {gameState.gameMode === 'pvp-online' && (
               <GameChat gameId={gameId || ''} />
             )}

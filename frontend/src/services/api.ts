@@ -355,7 +355,7 @@ export const usersAPI = {
     }
   },
 
-  async updateProfile(userData: Partial<User>) {
+  async updateProfile(userData: Partial<User> & { current_password?: string; new_password?: string }) {
     logger.info('USER', 'Updating user profile', { userId: userData.id });
     try {
       const response = await api.put('/api/users/me', userData);
@@ -454,6 +454,44 @@ export const rankingAPI = {
       throw error;
     }
   },
+};
+
+export const recordingsAPI = {
+  uploadRecording: async (blob: Blob, gameId: string) => {
+    const formData = new FormData();
+    formData.append('file', blob, 'recording.webm');
+    formData.append('game_id', gameId);
+    
+    const response = await api.post('/api/recordings/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  listRecordings: async () => {
+    const response = await api.get('/api/recordings/list');
+    return response.data;
+  },
+
+  getDownloadUrl: (recordingId: string) => {
+    const token = localStorage.getItem('token');
+    return `${API_BASE_URL}/api/recordings/download/${recordingId}?token=${token}`; 
+  },
+  
+  downloadRecordingBlob: async (recordingId: string, filename: string) => {
+      const response = await api.get(`/api/recordings/download/${recordingId}`, {
+          responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+  }
 };
 
 export default api;

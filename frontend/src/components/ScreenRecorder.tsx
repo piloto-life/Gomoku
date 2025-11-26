@@ -50,27 +50,44 @@ const ScreenRecorder: React.FC<ScreenRecorderProps> = ({
   }, []);
 
   const startRecording = async () => {
+    // 1. Verificação de suporte
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+      const errorMsg = 'Gravação de tela não é suportada neste dispositivo/navegador (Mobile não suportado).';
+      console.error(errorMsg);
+      onRecordingError?.(errorMsg);
+      setRecordingStatus('error');
+      return;
+    }
+
     try {
+      // 2. Chamar a API IMEDIATAMENTE para garantir que o navegador reconheça o clique do usuário.
+      // Não use 'await' em setStates antes disso.
+      const streamPromise = navigator.mediaDevices.getDisplayMedia({
+        video: {
+          // Removemos 'max' para evitar erros em monitores menores/maiores
+          width: { ideal: 1920 }, 
+          height: { ideal: 1080 },
+          frameRate: { ideal: 30 }
+        },
+        // Captura áudio apenas se habilitado e suportado pelo navegador
+        audio: settings.audioSettings.globalAudio 
+      });
+
+      // 3. Atualizar UI enquanto o usuário escolhe a janela
       setRecordingStatus('starting');
       setRecordedChunks([]);
 
-      // Solicitar permissão para capturar a tela
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          width: { ideal: 1920, max: 1920 },
-          height: { ideal: 1080, max: 1080 },
-          frameRate: { ideal: 30, max: 30 }
-        },
-        audio: settings.audioSettings.globalAudio // Capturar áudio se habilitado
-      });
-
+      // 4. Aguardar a escolha do usuário
+      const stream = await streamPromise;
       streamRef.current = stream;
 
       // Configurar MediaRecorder
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp9' // Codec de alta qualidade
-      });
+      const options = { mimeType: 'video/webm;codecs=vp9' };
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        options.mimeType = 'video/webm'; // Fallback
+      }
 
+      const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
 
       const chunks: Blob[] = [];
@@ -88,17 +105,25 @@ const ScreenRecorder: React.FC<ScreenRecorderProps> = ({
         stopTimer();
         setIsRecording(false);
         setRecordingStatus('idle');
+        
+        // Limpar tracks para parar o ícone de compartilhamento no navegador
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
       };
 
       mediaRecorder.onerror = (event) => {
-        const error = `Erro na gravação: ${event}`;
+        // Casting para 'any' para acessar a propriedade error de forma segura ou usar string template
+        const errorTarget = event.target as any;
+        const error = `Erro na gravação: ${errorTarget?.error?.message || 'Erro desconhecido'}`;
         console.error(error);
         onRecordingError?.(error);
         setRecordingStatus('error');
         stopRecording();
       };
 
-      // Detectar quando o usuário para a captura de tela
+      // Detectar quando o usuário clica em "Parar compartilhamento" na barra do navegador
       stream.getVideoTracks()[0].onended = () => {
         stopRecording();
       };
@@ -111,22 +136,34 @@ const ScreenRecorder: React.FC<ScreenRecorderProps> = ({
       onRecordingStart?.();
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido ao iniciar gravação';
-      console.error('Erro ao iniciar gravação:', error);
+      let errorMessage = 'Erro ao iniciar gravação.';
+      
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          errorMessage = 'Permissão negada ou cancelada pelo usuário.';
+        } else if (error.name === 'NotFoundError') {
+          errorMessage = 'Nenhuma fonte de vídeo encontrada.';
+        } else if (error.name === 'NotReadableError') {
+          errorMessage = 'Erro de hardware ou permissão do sistema operacional.';
+        } else {
+            errorMessage = error.message;
+        }
+      }
+      
+      console.error('Erro detalhado:', error);
       onRecordingError?.(errorMessage);
       setRecordingStatus('error');
+      
+      // Resetar estado se falhar no início
+      setTimeout(() => setRecordingStatus('idle'), 3000);
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       setRecordingStatus('stopping');
       mediaRecorderRef.current.stop();
-      
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-        streamRef.current = null;
-      }
+      // A limpeza do stream acontece no evento onstop
     }
   };
 
@@ -162,15 +199,15 @@ const ScreenRecorder: React.FC<ScreenRecorderProps> = ({
   const getStatusText = () => {
     switch (recordingStatus) {
       case 'starting':
-        return 'Iniciando gravação...';
+        return 'Iniciando...';
       case 'recording':
-        return `Gravando - ${formatTime(recordingTime)}`;
+        return `REC ${formatTime(recordingTime)}`;
       case 'stopping':
-        return 'Finalizando gravação...';
+        return 'Salvando...';
       case 'error':
-        return 'Erro na gravação';
+        return 'Erro';
       default:
-        return 'Pronto para gravar';
+        return 'Gravar Tela';
     }
   };
 
@@ -181,8 +218,8 @@ const ScreenRecorder: React.FC<ScreenRecorderProps> = ({
     <div className="screen-recorder">
       <div className="recorder-header">
         <h4>
-          <i className="fas fa-video"></i>
-          Gravação de Tela
+          <i className="fas fa-film"></i>
+          Gravação
         </h4>
         <div className={`recording-status ${recordingStatus}`}>
           {getStatusIcon()}
@@ -193,8 +230,7 @@ const ScreenRecorder: React.FC<ScreenRecorderProps> = ({
       <div className="recorder-controls">
         {!isInGame && (
           <div className="recorder-info">
-            <i className="fas fa-info-circle"></i>
-            <span>A gravação estará disponível durante o jogo</span>
+            <small>Disponível na partida</small>
           </div>
         )}
 
@@ -205,9 +241,10 @@ const ScreenRecorder: React.FC<ScreenRecorderProps> = ({
                 className="btn btn-primary record-btn"
                 onClick={startRecording}
                 disabled={recordingStatus !== 'idle'}
+                title="Gravar partida"
               >
-                <i className="fas fa-play"></i>
-                Iniciar Gravação
+                <i className="fas fa-circle"></i>
+                Gravar
               </button>
             )}
 
@@ -215,22 +252,20 @@ const ScreenRecorder: React.FC<ScreenRecorderProps> = ({
               <button
                 className="btn btn-danger stop-btn"
                 onClick={stopRecording}
+                title="Parar gravação"
               >
-                <i className="fas fa-stop"></i>
-                Parar Gravação
+                <i className="fas fa-square"></i>
+                Parar
               </button>
             )}
 
             {recordingStatus === 'error' && (
               <button
                 className="btn btn-secondary retry-btn"
-                onClick={() => {
-                  setRecordingStatus('idle');
-                  setRecordedChunks([]);
-                }}
+                onClick={() => setRecordingStatus('idle')}
               >
                 <i className="fas fa-redo"></i>
-                Tentar Novamente
+                Resetar
               </button>
             )}
           </div>
@@ -239,11 +274,12 @@ const ScreenRecorder: React.FC<ScreenRecorderProps> = ({
         {recordedChunks.length > 0 && !isRecording && (
           <div className="recording-actions">
             <button
-              className="btn btn-secondary download-btn"
+              className="btn btn-success download-btn"
               onClick={downloadRecording}
+              title="Baixar vídeo"
             >
               <i className="fas fa-download"></i>
-              Baixar Gravação
+              Baixar
             </button>
           </div>
         )}
@@ -252,47 +288,13 @@ const ScreenRecorder: React.FC<ScreenRecorderProps> = ({
       {isRecording && (
         <div className="recording-info">
           <div className="recording-details">
-            <div className="time-display">
-              <i className="fas fa-clock"></i>
-              <span>{formatTime(recordingTime)}</span>
-            </div>
             <div className="file-size">
               <i className="fas fa-hdd"></i>
               <span>{(recordedChunks.reduce((acc, chunk) => acc + chunk.size, 0) / 1024 / 1024).toFixed(1)} MB</span>
             </div>
           </div>
-          
-          <div className="recording-tips">
-            <p>
-              <i className="fas fa-lightbulb"></i>
-              Dica: Você pode parar a gravação clicando no botão "Parar compartilhamento" do navegador
-            </p>
-          </div>
         </div>
       )}
-
-      <div className="recorder-settings">
-        <h5>Configurações de Gravação</h5>
-        <div className="setting-item">
-          <label>
-            <input
-              type="checkbox"
-              checked={settings.audioSettings.globalAudio}
-              onChange={(e) => {
-                // Aqui você atualizaria a configuração de áudio
-                console.log('Audio setting:', e.target.checked);
-              }}
-            />
-            <span>Incluir áudio do sistema</span>
-          </label>
-        </div>
-        <div className="setting-info">
-          <small>
-            <i className="fas fa-info-circle"></i>
-            A gravação captura toda a tela. Qualidade: 1080p@30fps
-          </small>
-        </div>
-      </div>
     </div>
   );
 };

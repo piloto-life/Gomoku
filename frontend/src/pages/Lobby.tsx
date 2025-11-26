@@ -10,9 +10,7 @@ import ChatComponent from '../components/ChatComponent';
 import VideoChat from '../components/VideoChat';
 import RankingSystem from '../components/RankingSystem';
 import ScreenRecorder from '../components/ScreenRecorder';
-import ActiveGamesList from '../components/ActiveGamesList';
 import { gamesAPI, usersAPI, chatAPI } from '../services/api';
-import { GameState } from '../types';
 import logger from '../utils/logger';
 import '../components/UIComponents.css';
 import './Lobby.css';
@@ -47,7 +45,6 @@ const Lobby: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [userRanking, setUserRanking] = useState<any>({ rank_position: 0, elo_rating: 1200, wins: 0, losses: 0, rank_tier: 'Bronze' });
-  const [activeGames, setActiveGames] = useState<GameState[]>([]);
   const [onlinePlayers, setOnlinePlayers] = useState<OnlinePlayer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,8 +60,8 @@ const Lobby: React.FC = () => {
       try {
         const { rankingAPI } = await import('../services/api');
 
-        const [games, players, myStats] = await Promise.all([
-          gamesAPI.getActiveGames(),
+        // Removido gamesAPI.getActiveGames()
+        const [players, myStats] = await Promise.all([
           usersAPI.getOnlinePlayers(),
           rankingAPI.getMyStats().catch(err => {
             logger.warn('LOBBY', 'Failed to fetch my stats', err);
@@ -72,7 +69,6 @@ const Lobby: React.FC = () => {
           })
         ]);
 
-        setActiveGames(games);
         setOnlinePlayers(players);
 
         if (myStats) {
@@ -80,7 +76,6 @@ const Lobby: React.FC = () => {
         }
 
         logger.info('LOBBY', 'Lobby data fetched successfully', {
-          gamesCount: games.length,
           playersCount: players.length
         });
       } catch (err) {
@@ -150,6 +145,8 @@ const Lobby: React.FC = () => {
                   navigate(`/game/${message.game_id}`);
                 }
                 break;
+              
+              // game_ended removido pois não precisamos mais atualizar a lista
             }
           } catch (error) {
             logger.error('LOBBY', 'Error parsing WebSocket message', { error });
@@ -473,13 +470,8 @@ const Lobby: React.FC = () => {
             onRecordingStop={(blob) => console.log('Recording stopped, blob size:', blob.size)}
             onRecordingError={(error) => console.error('Recording error:', error)}
           />
-
-          <ActiveGamesList
-            games={activeGames}
-            onSpectate={(gameId) => navigate(`/game/${gameId}?spectate=true`)}
-            isLoading={isLoading}
-            error={error}
-          />
+          
+          {/* ActiveGamesList removido daqui */}
         </div>
       </div>
 
