@@ -1,9 +1,9 @@
 # Fdb version 4
-["pdflatex"] 1764029843.26093 "c:/Users/alec-/Desktop/Gomoku/latex/Gomoku.tex" "Gomoku.pdf" "Gomoku" 1764029845.2817 0
-  "Gomoku.aux" 1764029845 7385 eacd0512b4615d574d5435ed84682f11 "pdflatex"
-  "Gomoku.out" 1764029845 5681 224ba22622d194f6235b892b0b3076ef "pdflatex"
-  "Gomoku.tex" 1764029842 30755 dd5b09f5a0ca39d9ef7464b884f117b9 ""
-  "c:/Users/alec-/Desktop/Gomoku/latex/Gomoku.tex" 1764029842 30755 dd5b09f5a0ca39d9ef7464b884f117b9 ""
+["pdflatex"] 1764125702.31929 "c:/Users/alec-/Desktop/Gomoku/latex/Gomoku.tex" "Gomoku.pdf" "Gomoku" 1764125704.22973 0
+  "Gomoku.aux" 1764125704 7333 18c05794d04a8ad553912ecb81f48470 "pdflatex"
+  "Gomoku.out" 1764125704 5681 224ba22622d194f6235b892b0b3076ef "pdflatex"
+  "Gomoku.tex" 1764125699 30711 b3de625286900e82ef6ab11cb5240d5b ""
+  "c:/Users/alec-/Desktop/Gomoku/latex/Gomoku.tex" 1764125699 30711 b3de625286900e82ef6ab11cb5240d5b ""
   "c:/texlive/2025/texmf-dist/fonts/enc/dvips/base/8r.enc" 1762306391 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "c:/texlive/2025/texmf-dist/fonts/map/fontname/texfonts.map" 1762306998 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "c:/texlive/2025/texmf-dist/fonts/tfm/adobe/courier/pcrr8r.tfm" 1762305958 1292 bd42be2f344128bff6d35d98474adfe3 ""
@@ -168,9 +168,9 @@
   "c:/texlive/2025/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1762314505 5574345 9e0538e80e24c9ae9ee679f6f1bbacd7 ""
   "c:/texlive/2025/texmf-var/web2c/pdftex/pdflatex.fmt" 1762314665 3635465 7e48ef954c8d2f87b9aaae131f529a2e ""
   "c:/texlive/2025/texmf.cnf" 1762314479 713 e69b156964470283e0530f5060668171 ""
-  "figs/backend_tree.png" 1764028324 32032 e5dc8f39ba68b7b8069bf5d6e637d077 ""
-  "figs/brasao_UFSC_vertical_sigla.pdf" 1764028324 697234 6e20c450fc1f6304240ed9811504107c ""
-  "figs/lobby.png" 1764028324 109688 2b2388aa0cd3d532841d0589f9c6d19d ""
+  "figs/backend_tree.png" 1764125577 32032 e5dc8f39ba68b7b8069bf5d6e637d077 ""
+  "figs/lobby.png" 1764125577 109688 2b2388aa0cd3d532841d0589f9c6d19d ""
+  "figs/pvplobby.png" 1764125591 184282 9d117ac926639ce4e0ae10a03039c2a3 ""
   (generated)
   "Gomoku.aux"
   "Gomoku.log"
