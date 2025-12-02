@@ -160,31 +160,7 @@ async def _create_db_game(self, p1: Dict, p2: Dict) -> Dict:
 				</section>
 
 				<section>
-					<h3>Garbage Collector</h3>
-					<ul>
-						<li><strong>Problema:</strong> Jogos abandonados poluíam a lista do Lobby.</li>
-						<li><strong>Solução:</strong> Monitoramento de desconexão WebSocket. Se a sala esvazia, o jogo é abortado.</li>
-					</ul>
-					<pre><code class="python" data-trim data-noescape>
-# backend/routers/websocket.py
-
-except WebSocketDisconnect:
-    manager.disconnect(websocket, game_id, user_id)
-    
-    # Garbage Collector: Verifica se a sala ficou vazia
-    if not manager.game_rooms.get(game_id):
-        # Marca jogo como abortado no banco
-        await games_collection.update_one(
-            {"_id": ObjectId(game_id), "status": "active"},
-            {"$set": {"status": "aborted"}}
-        )
-        # Força atualização da lista no Lobby
-        await manager.broadcast_to_lobby(json.dumps({"type": "update"}))
-					</code></pre>
-				</section>
-
-				<section>
-					<h3>Recursos Avançados</h3>
+					<h3>Recursos Extras</h3>
 					<ul>
 						<li>
 							<strong>Modo Espectador:</strong>
